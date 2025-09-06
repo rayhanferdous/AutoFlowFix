@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./localAuth";
 import { 
   insertCustomerSchema,
   insertVehicleSchema,
@@ -17,11 +17,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
+      const user = req.user;
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -104,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "CREATE_CUSTOMER",
         entityType: "customer",
         entityId: customer.id,
@@ -134,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "UPDATE_CUSTOMER",
         entityType: "customer",
         entityId: customer.id,
@@ -164,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "DELETE_CUSTOMER",
         entityType: "customer",
         entityId: req.params.id,
@@ -197,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "CREATE_VEHICLE",
         entityType: "vehicle",
         entityId: vehicle.id,
@@ -235,7 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "CREATE_APPOINTMENT",
         entityType: "appointment",
         entityId: appointment.id,
@@ -271,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "CREATE_REPAIR_ORDER",
         entityType: "repair_order",
         entityId: repairOrder.id,
@@ -307,7 +312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Audit log
       await storage.createAuditLog({
-        userId: req.user.claims.sub,
+        userId: req.user.id,
         operation: "CREATE_INVOICE",
         entityType: "invoice",
         entityId: invoice.id,
