@@ -33,6 +33,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/logout', isAuthenticated, async (req: any, res) => {
+    try {
+      req.logout((err: any) => {
+        if (err) {
+          console.error("Error during logout:", err);
+          return res.status(500).json({ message: "Failed to logout" });
+        }
+        req.session.destroy((err: any) => {
+          if (err) {
+            console.error("Error destroying session:", err);
+            return res.status(500).json({ message: "Failed to logout" });
+          }
+          res.clearCookie('connect.sid');
+          res.json({ message: "Logged out successfully" });
+        });
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+      res.status(500).json({ message: "Failed to logout" });
+    }
+  });
+
   // Dashboard metrics
   app.get('/api/dashboard/metrics', isAuthenticated, async (req, res) => {
     try {

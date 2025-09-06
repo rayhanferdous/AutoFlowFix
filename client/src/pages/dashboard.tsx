@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,9 +6,33 @@ import Sidebar from "@/components/sidebar";
 import SystemHealth from "@/components/system-health";
 import ErrorNotification from "@/components/error-notification";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      toast({ title: "Success", description: "Logged out successfully!" });
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Logout Failed", 
+        description: error.message || "Failed to logout",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
 
   const { data: metrics, isLoading: metricsLoading } = useQuery({
     queryKey: ["/api/dashboard/metrics"],
@@ -73,6 +97,15 @@ export default function Dashboard() {
               >
                 <i className="fas fa-plus mr-2"></i>
                 New Appointment
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleLogout}
+                disabled={logoutMutation.isPending}
+                data-testid="button-logout"
+              >
+                <i className="fas fa-sign-out-alt mr-2"></i>
+                {logoutMutation.isPending ? "Logging out..." : "Logout"}
               </Button>
             </div>
           </div>
