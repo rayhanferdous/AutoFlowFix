@@ -24,11 +24,7 @@ export default function Landing() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
-      return apiRequest("/api/login", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("POST", "/api/login", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -45,11 +41,7 @@ export default function Landing() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: { username: string; email: string; password: string; firstName: string; lastName: string }) => {
-      return apiRequest("/api/register", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
+      return apiRequest("POST", "/api/register", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
