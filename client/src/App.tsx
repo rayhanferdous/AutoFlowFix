@@ -23,6 +23,8 @@ import Settings from "@/pages/settings";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
+
+
   return (
     <Switch>
       {isLoading || !isAuthenticated ? (

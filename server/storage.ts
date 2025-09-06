@@ -159,18 +159,18 @@ export class DatabaseStorage implements IStorage {
 
   // Appointment operations
   async getAppointments(startDate?: Date, endDate?: Date): Promise<Appointment[]> {
-    let query = db.select().from(appointments);
-    
     if (startDate && endDate) {
-      query = query.where(
-        and(
-          gte(appointments.scheduledDate, startDate),
-          lte(appointments.scheduledDate, endDate)
+      return await db.select().from(appointments)
+        .where(
+          and(
+            gte(appointments.scheduledDate, startDate),
+            lte(appointments.scheduledDate, endDate)
+          )
         )
-      );
+        .orderBy(appointments.scheduledDate);
     }
     
-    return await query.orderBy(appointments.scheduledDate);
+    return await db.select().from(appointments).orderBy(appointments.scheduledDate);
   }
 
   async getAppointment(id: string): Promise<Appointment | undefined> {
