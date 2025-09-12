@@ -2,11 +2,34 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Sidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/logout");
+    },
+    onSuccess: () => {
+      queryClient.clear();
+      toast({ title: "Success", description: "Logged out successfully!" });
+      window.location.href = "/";
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Logout Failed", 
+        description: error.message || "Failed to logout",
+        variant: "destructive" 
+      });
+    },
+  });
 
   const menuItems = [
     {
@@ -96,7 +119,7 @@ export default function Sidebar() {
   };
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
   const isActive = (path: string) => {
