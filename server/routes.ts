@@ -350,6 +350,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/repair-orders/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const repairOrderData = insertRepairOrderSchema.partial().omit({ 
+        id: true, 
+        orderNumber: true,
+        createdAt: true, 
+        updatedAt: true 
+      }).parse(req.body);
+      
+      const repairOrder = await storage.updateRepairOrder(id, repairOrderData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_REPAIR_ORDER",
+        entityType: "repair_order",
+        entityId: repairOrder.id,
+        newValues: repairOrder,
+        status: "success",
+      });
+
+      res.json(repairOrder);
+    } catch (error) {
+      console.error("Error updating repair order:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid repair order data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update repair order" });
+    }
+  });
+
   // Invoice routes
   app.get('/api/invoices', isAuthenticated, async (req, res) => {
     try {
