@@ -92,6 +92,20 @@ export default function Inspections() {
     createInspectionMutation.mutate(inspectionData);
   };
 
+  const handleViewDetails = (inspection: Inspection) => {
+    toast({
+      title: "Inspection Details",
+      description: `Viewing details for ${inspection.customerName}'s ${inspection.vehicleInfo} - Status: ${inspection.status}`,
+    });
+  };
+
+  const handleContinueInspection = (inspection: Inspection) => {
+    toast({
+      title: "Continue Inspection",
+      description: `Continuing inspection for ${inspection.customerName}'s ${inspection.vehicleInfo}`,
+    });
+  };
+
   return (
     <div className="flex h-screen bg-background">
       <Sidebar />
@@ -204,10 +218,20 @@ export default function Inspections() {
                       <p className="font-medium">{inspection.completedItems}/{inspection.checklistItems} items</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" data-testid={`button-view-${inspection.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleViewDetails(inspection)}
+                        data-testid={`button-view-${inspection.id}`}
+                      >
                         View Details
                       </Button>
-                      <Button variant="outline" size="sm" data-testid={`button-edit-${inspection.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleContinueInspection(inspection)}
+                        data-testid={`button-edit-${inspection.id}`}
+                      >
                         Continue
                       </Button>
                     </div>
