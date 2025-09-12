@@ -20,7 +20,7 @@ const assignJobSchema = z.object({
   repairOrderId: z.string().min(1, "Please select a repair order"),
   technicianId: z.string().min(1, "Please select a technician"),
   priority: z.enum(["low", "normal", "high", "urgent"]),
-  estimatedTime: z.string().min(1, "Estimated time is required"),
+  laborHours: z.string().min(1, "Labor hours estimate is required"),
   notes: z.string().optional(),
 });
 
@@ -29,13 +29,13 @@ export default function JobBoard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch repair orders for job assignment
-  const { data: repairOrders } = useQuery({
+  // Fetch repair orders for job assignment and display
+  const { data: repairOrders, isLoading: isLoadingRepairOrders } = useQuery({
     queryKey: ["/api/repair-orders"],
   });
 
-  // Fetch customers to get technician info (for now using customers as technicians)
-  const { data: customers } = useQuery({
+  // Fetch customers to use as technicians (temporary solution)
+  const { data: customers, isLoading: isLoadingCustomers } = useQuery({
     queryKey: ["/api/customers"],
   });
 
@@ -46,7 +46,7 @@ export default function JobBoard() {
       repairOrderId: "",
       technicianId: "",
       priority: "normal",
-      estimatedTime: "",
+      laborHours: "",
       notes: "",
     },
   });
@@ -58,6 +58,7 @@ export default function JobBoard() {
       return await apiRequest("PUT", `/api/repair-orders/${jobData.repairOrderId}`, {
         technicianId: jobData.technicianId,
         priority: jobData.priority,
+        laborHours: parseFloat(jobData.laborHours),
         diagnosis: jobData.notes || "",
       });
     },
@@ -86,30 +87,18 @@ export default function JobBoard() {
   const onAssignSubmit = (data: z.infer<typeof assignJobSchema>) => {
     assignJobMutation.mutate(data);
   };
-  const jobs = [
-    {
-      id: "JOB-001",
-      title: "Oil Change & Filter",
-      vehicle: "2018 Honda Civic",
-      customer: "John Smith",
-      assignedTo: "Mike Johnson",
-      priority: "medium",
-      status: "in-progress",
-      estimatedTime: "1 hour",
-      dueDate: "2024-01-15"
-    },
-    {
-      id: "JOB-002",
-      title: "Brake Inspection & Repair",
-      vehicle: "2020 Toyota Camry", 
-      customer: "Sarah Johnson",
-      assignedTo: "Unassigned",
-      priority: "high",
-      status: "pending",
-      estimatedTime: "3 hours",
-      dueDate: "2024-01-14"
-    }
-  ];
+  // Transform repair orders into job format for display
+  const jobs = Array.isArray(repairOrders) ? repairOrders.map((order: any) => ({
+    id: order.id,
+    title: order.description,
+    vehicle: `${order.vehicle?.year} ${order.vehicle?.make} ${order.vehicle?.model}` || "Unknown Vehicle",
+    customer: `${order.customer?.firstName} ${order.customer?.lastName}` || "Unknown Customer",
+    assignedTo: order.technician ? `${order.technician.firstName} ${order.technician.lastName}` : "Unassigned",
+    priority: order.priority || "normal",
+    status: order.status || "created",
+    estimatedTime: order.laborHours ? `${order.laborHours} hours` : "Not set",
+    dueDate: order.startedAt ? new Date(order.startedAt).toLocaleDateString() : "Not scheduled"
+  })) : [];
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -219,11 +208,15 @@ export default function JobBoard() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {Array.isArray(repairOrders) ? repairOrders.map((order: any) => (
-                              <SelectItem key={order.id} value={order.id}>
+                            {isLoadingRepairOrders ? (
+                              <SelectItem value="" disabled>Loading repair orders...</SelectItem>
+                            ) : Array.isArray(repairOrders) ? repairOrders.map((order: any) => (
+                              <SelectItem key={order.id} value={String(order.id)}>
                                 {order.orderNumber} - {order.description}
                               </SelectItem>
-                            )) : null}
+                            )) : (
+                              <SelectItem value="" disabled>No repair orders available</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -244,11 +237,15 @@ export default function JobBoard() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {Array.isArray(customers) ? customers.map((customer: any) => (
-                              <SelectItem key={customer.id} value={customer.id}>
+                            {isLoadingCustomers ? (
+                              <SelectItem value="" disabled>Loading technicians...</SelectItem>
+                            ) : Array.isArray(customers) ? customers.map((customer: any) => (
+                              <SelectItem key={customer.id} value={String(customer.id)}>
                                 {customer.firstName} {customer.lastName}
                               </SelectItem>
-                            )) : null}
+                            )) : (
+                              <SelectItem value="" disabled>No technicians available</SelectItem>
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -284,15 +281,17 @@ export default function JobBoard() {
 
                   <FormField
                     control={assignForm.control}
-                    name="estimatedTime"
+                    name="laborHours"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estimated Time</FormLabel>
+                        <FormLabel>Labor Hours</FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="e.g., 2 hours" 
+                            type="number"
+                            step="0.5"
+                            placeholder="e.g., 2.5" 
                             {...field}
-                            data-testid="input-estimated-time"
+                            data-testid="input-labor-hours"
                           />
                         </FormControl>
                         <FormMessage />
