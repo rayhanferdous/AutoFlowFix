@@ -28,7 +28,7 @@ export default function UsersPage() {
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: UserRole }) => {
-      return apiRequest(`/api/users/${userId}/role`, 'PATCH', { role });
+      return apiRequest('PATCH', `/api/users/${userId}/role`, { role });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
