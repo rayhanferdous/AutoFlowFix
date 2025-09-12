@@ -8,36 +8,50 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/sidebar";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { Inspection, InsertInspection } from "@shared/schema";
 
 export default function Inspections() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     customerName: "",
     vehicleInfo: "",
-    serviceType: ""
+    serviceType: "",
+    customerId: "",
+    vehicleId: ""
   });
   const { toast } = useToast();
-  
-  const [inspections, setInspections] = useState([
-    {
-      id: "INS-001",
-      vehicleInfo: "2018 Honda Civic - ABC123",
-      customerName: "John Smith",
-      status: "pending",
-      createdAt: new Date().toISOString(),
-      checklistItems: 12,
-      completedItems: 8
+
+  // Fetch inspections from API
+  const { data: inspections = [], isLoading } = useQuery<Inspection[]>({
+    queryKey: ['/api/inspections'],
+  });
+
+  // Create inspection mutation
+  const createInspectionMutation = useMutation({
+    mutationFn: (inspection: InsertInspection) => 
+      apiRequest('/api/inspections', {
+        method: 'POST',
+        body: inspection,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
+      setFormData({ customerName: "", vehicleInfo: "", serviceType: "", customerId: "", vehicleId: "" });
+      setIsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "New inspection created successfully",
+      });
     },
-    {
-      id: "INS-002", 
-      vehicleInfo: "2020 Toyota Camry - XYZ789",
-      customerName: "Sarah Johnson",
-      status: "completed",
-      createdAt: new Date().toISOString(),
-      checklistItems: 15,
-      completedItems: 15
-    }
-  ]);
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create inspection",
+        variant: "destructive",
+      });
+    },
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -52,7 +66,7 @@ export default function Inspections() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleCreateInspection = () => {
+  const handleCreateInspection = async () => {
     if (!formData.customerName || !formData.vehicleInfo || !formData.serviceType) {
       toast({
         title: "Error",
@@ -62,24 +76,20 @@ export default function Inspections() {
       return;
     }
 
-    const newInspection = {
-      id: `INS-${String(inspections.length + 1).padStart(3, '0')}`,
+    // For now, we'll use placeholder IDs until we integrate with customers/vehicles
+    const inspectionData: InsertInspection = {
+      customerId: formData.customerId || "placeholder-customer-id",
+      vehicleId: formData.vehicleId || "placeholder-vehicle-id",
       vehicleInfo: formData.vehicleInfo,
       customerName: formData.customerName,
+      serviceType: formData.serviceType,
       status: "pending",
-      createdAt: new Date().toISOString(),
       checklistItems: 12,
-      completedItems: 0
+      completedItems: 0,
+      notes: null,
     };
 
-    setInspections(prev => [newInspection, ...prev]);
-    setFormData({ customerName: "", vehicleInfo: "", serviceType: "" });
-    setIsDialogOpen(false);
-    
-    toast({
-      title: "Success",
-      description: "New inspection created successfully",
-    });
+    createInspectionMutation.mutate(inspectionData);
   };
 
   return (
@@ -148,8 +158,12 @@ export default function Inspections() {
                   <Button variant="outline" onClick={() => setIsDialogOpen(false)} data-testid="button-cancel">
                     Cancel
                   </Button>
-                  <Button onClick={handleCreateInspection} data-testid="button-create-inspection">
-                    Create Inspection
+                  <Button 
+                    onClick={handleCreateInspection} 
+                    disabled={createInspectionMutation.isPending}
+                    data-testid="button-create-inspection"
+                  >
+                    {createInspectionMutation.isPending ? "Creating..." : "Create Inspection"}
                   </Button>
                 </div>
               </DialogContent>
@@ -157,8 +171,17 @@ export default function Inspections() {
           </div>
 
           <div className="grid gap-6">
-            {inspections.map((inspection) => (
-              <Card key={inspection.id} className="hover:shadow-lg transition-shadow">
+            {isLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <div className="text-muted-foreground">Loading inspections...</div>
+              </div>
+            ) : inspections.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No inspections found. Create your first inspection to get started.</p>
+              </div>
+            ) : (
+              inspections.map((inspection) => (
+                <Card key={inspection.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
@@ -191,7 +214,8 @@ export default function Inspections() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </main>
