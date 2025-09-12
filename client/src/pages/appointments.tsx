@@ -47,13 +47,6 @@ export default function Appointments() {
     queryKey: ["/api/customers"],
   });
 
-  // Get vehicles for selected customer
-  const selectedCustomerId = form.watch("customerId");
-  const { data: vehicles } = useQuery({
-    queryKey: ["/api/customers", selectedCustomerId, "vehicles"],
-    enabled: !!selectedCustomerId,
-  });
-
   const createAppointmentMutation = useMutation({
     mutationFn: async (appointmentData: z.infer<typeof insertAppointmentSchema>) => {
       return await apiRequest("POST", "/api/appointments", appointmentData);
@@ -99,6 +92,13 @@ export default function Appointments() {
       status: "scheduled",
       notes: "",
     },
+  });
+
+  // Get vehicles for selected customer
+  const selectedCustomerId = form.watch("customerId");
+  const { data: vehicles } = useQuery({
+    queryKey: ["/api/customers", selectedCustomerId, "vehicles"],
+    enabled: !!selectedCustomerId,
   });
 
   const onSubmit = (data: z.infer<typeof insertAppointmentSchema>) => {
