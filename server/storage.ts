@@ -5,6 +5,7 @@ import {
   appointments,
   repairOrders,
   invoices,
+  inspections,
   auditLog,
   systemHealth,
   type User,
@@ -20,6 +21,8 @@ import {
   type InsertRepairOrder,
   type Invoice,
   type InsertInvoice,
+  type Inspection,
+  type InsertInspection,
   type AuditLog,
   type InsertAuditLog,
   type SystemHealth,
@@ -67,6 +70,13 @@ export interface IStorage {
   getInvoice(id: string): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice>;
+
+  // Inspection operations
+  getInspections(): Promise<Inspection[]>;
+  getInspection(id: string): Promise<Inspection | undefined>;
+  createInspection(inspection: InsertInspection): Promise<Inspection>;
+  updateInspection(id: string, inspection: Partial<InsertInspection>): Promise<Inspection>;
+  deleteInspection(id: string): Promise<void>;
 
   // Audit Log operations
   createAuditLog(auditEntry: InsertAuditLog): Promise<AuditLog>;
@@ -261,6 +271,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(invoices.id, id))
       .returning();
     return updatedInvoice;
+  }
+
+  // Inspection operations
+  async getInspections(): Promise<Inspection[]> {
+    return await db.select().from(inspections).orderBy(desc(inspections.createdAt));
+  }
+
+  async getInspection(id: string): Promise<Inspection | undefined> {
+    const [inspection] = await db.select().from(inspections).where(eq(inspections.id, id));
+    return inspection;
+  }
+
+  async createInspection(inspection: InsertInspection): Promise<Inspection> {
+    const [newInspection] = await db.insert(inspections).values(inspection).returning();
+    return newInspection;
+  }
+
+  async updateInspection(id: string, inspection: Partial<InsertInspection>): Promise<Inspection> {
+    const [updatedInspection] = await db
+      .update(inspections)
+      .set({ ...inspection, updatedAt: new Date() })
+      .where(eq(inspections.id, id))
+      .returning();
+    return updatedInspection;
+  }
+
+  async deleteInspection(id: string): Promise<void> {
+    await db.delete(inspections).where(eq(inspections.id, id));
   }
 
   // Audit Log operations

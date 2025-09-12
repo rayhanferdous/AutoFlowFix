@@ -8,6 +8,7 @@ import {
   insertAppointmentSchema,
   insertRepairOrderSchema,
   insertInvoiceSchema,
+  insertInspectionSchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -349,6 +350,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid invoice data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  // Inspections routes
+  app.get('/api/inspections', isAuthenticated, async (req, res) => {
+    try {
+      const inspections = await storage.getInspections();
+      res.json(inspections);
+    } catch (error) {
+      console.error("Error fetching inspections:", error);
+      res.status(500).json({ message: "Failed to fetch inspections" });
+    }
+  });
+
+  app.post('/api/inspections', isAuthenticated, async (req: any, res) => {
+    try {
+      const inspectionData = insertInspectionSchema.parse(req.body);
+      const inspection = await storage.createInspection(inspectionData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "CREATE_INSPECTION",
+        entityType: "inspection",
+        entityId: inspection.id,
+        newValues: inspection,
+        status: "success",
+      });
+
+      res.status(201).json(inspection);
+    } catch (error) {
+      console.error("Error creating inspection:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid inspection data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create inspection" });
     }
   });
 

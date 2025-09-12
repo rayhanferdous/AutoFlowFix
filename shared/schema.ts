@@ -125,6 +125,22 @@ export const invoices = pgTable("invoices", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Digital Inspections table
+export const inspections = pgTable("inspections", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: uuid("customer_id").references(() => customers.id).notNull(),
+  vehicleId: uuid("vehicle_id").references(() => vehicles.id).notNull(),
+  vehicleInfo: text("vehicle_info").notNull(), // e.g., "2020 Honda Civic - ABC123"
+  customerName: varchar("customer_name", { length: 200 }).notNull(),
+  serviceType: varchar("service_type", { length: 100 }).notNull(),
+  status: varchar("status", { length: 20 }).default("pending"), // pending, in-progress, completed
+  checklistItems: integer("checklist_items").default(12),
+  completedItems: integer("completed_items").default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Audit Log table for tracking all operations
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -157,6 +173,7 @@ export const customerRelations = relations(customers, ({ many }) => ({
   appointments: many(appointments),
   repairOrders: many(repairOrders),
   invoices: many(invoices),
+  inspections: many(inspections),
 }));
 
 export const vehicleRelations = relations(vehicles, ({ one, many }) => ({
@@ -166,6 +183,7 @@ export const vehicleRelations = relations(vehicles, ({ one, many }) => ({
   }),
   appointments: many(appointments),
   repairOrders: many(repairOrders),
+  inspections: many(inspections),
 }));
 
 export const appointmentRelations = relations(appointments, ({ one, many }) => ({
@@ -214,6 +232,17 @@ export const invoiceRelations = relations(invoices, ({ one }) => ({
   }),
 }));
 
+export const inspectionRelations = relations(inspections, ({ one }) => ({
+  customer: one(customers, {
+    fields: [inspections.customerId],
+    references: [customers.id],
+  }),
+  vehicle: one(vehicles, {
+    fields: [inspections.vehicleId],
+    references: [vehicles.id],
+  }),
+}));
+
 // Insert schemas
 export const insertCustomerSchema = createInsertSchema(customers).omit({
   id: true,
@@ -240,6 +269,12 @@ export const insertRepairOrderSchema = createInsertSchema(repairOrders).omit({
 });
 
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertInspectionSchema = createInsertSchema(inspections).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -276,6 +311,8 @@ export type RepairOrder = typeof repairOrders.$inferSelect;
 export type InsertRepairOrder = z.infer<typeof insertRepairOrderSchema>;
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type Inspection = typeof inspections.$inferSelect;
+export type InsertInspection = z.infer<typeof insertInspectionSchema>;
 export type AuditLog = typeof auditLog.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 export type SystemHealth = typeof systemHealth.$inferSelect;
