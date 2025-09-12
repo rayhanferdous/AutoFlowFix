@@ -209,13 +209,13 @@ export default function JobBoard() {
                           </FormControl>
                           <SelectContent>
                             {isLoadingRepairOrders ? (
-                              <SelectItem value="" disabled>Loading repair orders...</SelectItem>
-                            ) : Array.isArray(repairOrders) ? repairOrders.map((order: any) => (
+                              <SelectItem value="loading" disabled>Loading repair orders...</SelectItem>
+                            ) : Array.isArray(repairOrders) && repairOrders.length > 0 ? repairOrders.map((order: any) => (
                               <SelectItem key={order.id} value={String(order.id)}>
                                 {order.orderNumber} - {order.description}
                               </SelectItem>
                             )) : (
-                              <SelectItem value="" disabled>No repair orders available</SelectItem>
+                              <SelectItem value="none" disabled>No repair orders available</SelectItem>
                             )}
                           </SelectContent>
                         </Select>
@@ -238,13 +238,13 @@ export default function JobBoard() {
                           </FormControl>
                           <SelectContent>
                             {isLoadingUsers ? (
-                              <SelectItem value="" disabled>Loading technicians...</SelectItem>
-                            ) : Array.isArray(users) ? users.map((user: any) => (
+                              <SelectItem value="loading" disabled>Loading technicians...</SelectItem>
+                            ) : Array.isArray(users) && users.length > 0 ? users.map((user: any) => (
                               <SelectItem key={user.id} value={String(user.id)}>
                                 {user.firstName} {user.lastName} ({user.role})
                               </SelectItem>
                             )) : (
-                              <SelectItem value="" disabled>No technicians available</SelectItem>
+                              <SelectItem value="none" disabled>No technicians available</SelectItem>
                             )}
                           </SelectContent>
                         </Select>
