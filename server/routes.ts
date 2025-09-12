@@ -64,8 +64,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Dashboard metrics
-  app.get('/api/dashboard/metrics', isAuthenticated, async (req, res) => {
+  // Dashboard metrics - Admin only
+  app.get('/api/dashboard/metrics', adminOnly, async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -75,8 +75,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // System Health
-  app.get('/api/system/health', isAuthenticated, async (req, res) => {
+  // System Health - Admin only
+  app.get('/api/system/health', adminOnly, async (req, res) => {
     try {
       const healthRecords = await storage.getSystemHealth();
       res.json(healthRecords);
@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/system/health', isAuthenticated, async (req, res) => {
+  app.post('/api/system/health', adminOnly, async (req, res) => {
     try {
       const { component, status, responseTime, details } = req.body;
       const healthRecord = await storage.recordSystemHealth(component, status, responseTime, details);
@@ -97,8 +97,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Audit Logs
-  app.get('/api/audit-logs', isAuthenticated, async (req, res) => {
+  // Audit Logs - Admin only
+  app.get('/api/audit-logs', adminOnly, async (req, res) => {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : 50;
       const auditLogs = await storage.getAuditLogs(limit);
