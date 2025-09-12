@@ -34,9 +34,9 @@ export default function JobBoard() {
     queryKey: ["/api/repair-orders"],
   });
 
-  // Fetch customers to use as technicians (temporary solution)
-  const { data: customers, isLoading: isLoadingCustomers } = useQuery({
-    queryKey: ["/api/customers"],
+  // Fetch users for technician selection
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["/api/users"],
   });
 
   // Form for job assignment
@@ -237,11 +237,11 @@ export default function JobBoard() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {isLoadingCustomers ? (
+                            {isLoadingUsers ? (
                               <SelectItem value="" disabled>Loading technicians...</SelectItem>
-                            ) : Array.isArray(customers) ? customers.map((customer: any) => (
-                              <SelectItem key={customer.id} value={String(customer.id)}>
-                                {customer.firstName} {customer.lastName}
+                            ) : Array.isArray(users) ? users.map((user: any) => (
+                              <SelectItem key={user.id} value={String(user.id)}>
+                                {user.firstName} {user.lastName} ({user.role})
                               </SelectItem>
                             )) : (
                               <SelectItem value="" disabled>No technicians available</SelectItem>
