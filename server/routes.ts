@@ -258,7 +258,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/appointments', isAuthenticated, async (req: any, res) => {
     try {
-      const appointmentData = insertAppointmentSchema.parse(req.body);
+      const appointmentData = insertAppointmentSchema.parse({
+        ...req.body,
+        scheduledDate: new Date(req.body.scheduledDate)
+      });
       const appointment = await storage.createAppointment(appointmentData);
       
       // Audit log
