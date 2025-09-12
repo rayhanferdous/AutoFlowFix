@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +48,36 @@ export default function RepairOrders() {
     queryKey: ["/api/customers"],
   });
 
+  const form = useForm<z.infer<typeof insertRepairOrderSchema>>({
+    resolver: zodResolver(insertRepairOrderSchema),
+    defaultValues: {
+      orderNumber: `RO-${Date.now()}`,
+      customerId: "",
+      vehicleId: "",
+      technicianId: "",
+      status: "created",
+      priority: "normal",
+      description: "",
+      diagnosis: "",
+      estimatedCost: "",
+      actualCost: "",
+      laborHours: "",
+    },
+  });
+
+  const customerId = form.watch("customerId");
+  
+  const { data: vehicles, isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ["/api/customers", customerId, "vehicles"],
+    enabled: !!customerId,
+  });
+
+  useEffect(() => {
+    if (customerId) {
+      form.setValue("vehicleId", "");
+    }
+  }, [customerId, form]);
+
   const createRepairOrderMutation = useMutation({
     mutationFn: async (repairOrderData: z.infer<typeof insertRepairOrderSchema>) => {
       return await apiRequest("POST", "/api/repair-orders", repairOrderData);
@@ -78,23 +108,6 @@ export default function RepairOrders() {
         description: "Failed to create repair order",
         variant: "destructive",
       });
-    },
-  });
-
-  const form = useForm<z.infer<typeof insertRepairOrderSchema>>({
-    resolver: zodResolver(insertRepairOrderSchema),
-    defaultValues: {
-      orderNumber: `RO-${Date.now()}`,
-      customerId: "",
-      vehicleId: "",
-      technicianId: "",
-      status: "created",
-      priority: "normal",
-      description: "",
-      diagnosis: "",
-      estimatedCost: "",
-      actualCost: "",
-      laborHours: "",
     },
   });
 
@@ -211,6 +224,41 @@ export default function RepairOrders() {
                           </FormItem>
                         )}
                       />
+
+                      <FormField
+                        control={form.control}
+                        name="vehicleId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Vehicle</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                              disabled={!customerId || isLoadingVehicles}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-vehicle">
+                                  <SelectValue 
+                                    placeholder={
+                                      !customerId ? "Select a customer first" :
+                                      isLoadingVehicles ? "Loading vehicles..." :
+                                      "Select a vehicle"
+                                    } 
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {Array.isArray(vehicles) ? vehicles.map((vehicle: any) => (
+                                  <SelectItem key={vehicle.id} value={vehicle.id}>
+                                    {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                                  </SelectItem>
+                                )) : null}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -220,7 +268,7 @@ export default function RepairOrders() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Priority</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value || "normal"}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-priority">
                                   <SelectValue placeholder="Select priority" />
