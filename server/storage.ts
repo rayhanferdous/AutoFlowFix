@@ -62,6 +62,7 @@ export interface IStorage {
 
   // Repair Order operations
   getRepairOrders(): Promise<RepairOrder[]>;
+  getRepairOrdersByTechnician(technicianId: string): Promise<RepairOrder[]>;
   getRepairOrder(id: string): Promise<RepairOrder | undefined>;
   createRepairOrder(repairOrder: InsertRepairOrder): Promise<RepairOrder>;
   updateRepairOrder(id: string, repairOrder: Partial<InsertRepairOrder>): Promise<RepairOrder>;
@@ -233,6 +234,12 @@ export class DatabaseStorage implements IStorage {
   // Repair Order operations
   async getRepairOrders(): Promise<RepairOrder[]> {
     return await db.select().from(repairOrders).orderBy(desc(repairOrders.createdAt));
+  }
+
+  async getRepairOrdersByTechnician(technicianId: string): Promise<RepairOrder[]> {
+    return await db.select().from(repairOrders)
+      .where(eq(repairOrders.technicianId, technicianId))
+      .orderBy(desc(repairOrders.createdAt));
   }
 
   async getRepairOrder(id: string): Promise<RepairOrder | undefined> {

@@ -71,22 +71,8 @@ export const menuItems: MenuItem[] = [
     title: "Customer Portal",
     path: "/customer-portal",
     icon: "fas fa-user-circle",
-    section: "customer",
-    roles: ["admin"] // Shop Manager only
-  },
-  {
-    title: "My Vehicles",
-    path: "/my-vehicles",
-    icon: "fas fa-car",
     section: "personal",
-    roles: ["client"] // Client only - their vehicle info
-  },
-  {
-    title: "Service History",
-    path: "/my-service-history",
-    icon: "fas fa-history",
-    section: "personal",
-    roles: ["client"] // Client only - their service history
+    roles: ["client"] // Client only - their personal portal
   },
   {
     title: "Invoices & Payments",
@@ -140,7 +126,13 @@ export function getMenuItemsForRole(userRole: UserRole): MenuItem[] {
 
 // Helper function to check if user has access to a specific path
 export function hasAccess(userRole: UserRole, path: string): boolean {
-  const item = menuItems.find(item => item.path === path);
+  // Dashboard is always accessible to authenticated users
+  if (path === "/") return true;
+  
+  // Check for exact path match or path prefix for nested routes
+  const item = menuItems.find(item => 
+    item.path === path || path.startsWith(item.path + "/")
+  );
   return item ? item.roles.includes(userRole) : false;
 }
 

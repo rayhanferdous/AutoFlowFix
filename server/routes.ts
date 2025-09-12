@@ -3,6 +3,14 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./localAuth";
 import { 
+  adminOnly, 
+  technicianOrAdmin, 
+  clientOrAdmin, 
+  authenticatedOnly,
+  filterDataByRole,
+  ensureOwnership
+} from "./rbacMiddleware";
+import { 
   insertCustomerSchema,
   insertVehicleSchema,
   insertAppointmentSchema,
@@ -101,8 +109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Customer routes
-  app.get('/api/customers', isAuthenticated, async (req, res) => {
+  // Customer routes - Admin only for full customer management
+  app.get('/api/customers', adminOnly, async (req, res) => {
     try {
       const customers = await storage.getCustomers();
       res.json(customers);
@@ -112,7 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/customers/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/customers/:id', adminOnly, ensureOwnership('customer'), async (req, res) => {
     try {
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
@@ -314,10 +322,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Repair Order routes
-  app.get('/api/repair-orders', isAuthenticated, async (req, res) => {
+  // Repair Order routes - Technicians and Admins only
+  app.get('/api/repair-orders', technicianOrAdmin, filterDataByRole, async (req: any, res) => {
     try {
-      const repairOrders = await storage.getRepairOrders();
+      const roleContext = req.roleContext;
+      let repairOrders;
+      
+      if (roleContext.canAccessAll) {
+        // Admins see all repair orders
+        repairOrders = await storage.getRepairOrders();
+      } else if (roleContext.canAccessAssigned) {
+        // Technicians see only assigned repair orders
+        repairOrders = await storage.getRepairOrdersByTechnician(roleContext.userId);
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(repairOrders);
     } catch (error) {
       console.error("Error fetching repair orders:", error);

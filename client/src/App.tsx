@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
@@ -32,18 +33,66 @@ function Router() {
       ) : (
         <>
           <Route path="/" component={Dashboard} />
-          <Route path="/customers" component={Customers} />
-          <Route path="/appointments" component={Appointments} />
-          <Route path="/repair-orders" component={RepairOrders} />
-          <Route path="/customer-portal" component={CustomerPortal} />
-          <Route path="/inspections" component={Inspections} />
-          <Route path="/job-board" component={JobBoard} />
-          <Route path="/messaging" component={Messaging} />
-          <Route path="/reviews" component={Reviews} />
-          <Route path="/invoices" component={Invoices} />
-          <Route path="/inventory" component={Inventory} />
-          <Route path="/reporting" component={Reporting} />
-          <Route path="/settings" component={Settings} />
+          <Route path="/customers">
+            <ProtectedRoute path="/customers">
+              <Customers />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/appointments">
+            <ProtectedRoute path="/appointments">
+              <Appointments />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/repair-orders">
+            <ProtectedRoute path="/repair-orders">
+              <RepairOrders />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/customer-portal">
+            <ProtectedRoute path="/customer-portal">
+              <CustomerPortal />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/inspections">
+            <ProtectedRoute path="/inspections">
+              <Inspections />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/job-board">
+            <ProtectedRoute path="/job-board">
+              <JobBoard />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/messaging">
+            <ProtectedRoute path="/messaging">
+              <Messaging />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/reviews">
+            <ProtectedRoute path="/reviews">
+              <Reviews />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/invoices">
+            <ProtectedRoute path="/invoices">
+              <Invoices />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/inventory">
+            <ProtectedRoute path="/inventory">
+              <Inventory />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/reporting">
+            <ProtectedRoute path="/reporting">
+              <Reporting />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/settings">
+            <ProtectedRoute path="/settings">
+              <Settings />
+            </ProtectedRoute>
+          </Route>
         </>
       )}
       <Route component={NotFound} />
