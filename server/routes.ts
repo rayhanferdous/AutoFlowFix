@@ -8,7 +8,8 @@ import {
   clientOrAdmin, 
   authenticatedOnly,
   filterDataByRole,
-  ensureOwnership
+  ensureOwnership,
+  createClientOwnershipMiddleware
 } from "./rbacMiddleware";
 import { 
   insertCustomerSchema,
@@ -23,6 +24,9 @@ import { z } from "zod";
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
+
+  // Create ownership middleware with storage access
+  const clientOwnershipMiddleware = createClientOwnershipMiddleware(storage);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -215,10 +219,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Vehicle routes
-  app.get('/api/customers/:customerId/vehicles', isAuthenticated, async (req, res) => {
+  // Vehicle routes - with role-based access control
+  app.get('/api/customers/:customerId/vehicles', isAuthenticated, filterDataByRole, async (req: any, res) => {
     try {
-      const vehicles = await storage.getVehiclesByCustomer(req.params.customerId);
+      const roleContext = req.roleContext;
+      const { customerId } = req.params;
+      
+      // For clients, ensure they can only access their own vehicles
+      if (roleContext.role === 'client') {
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer || customer.id !== customerId) {
+          return res.status(403).json({ message: "Access denied - you can only view your own vehicles" });
+        }
+      }
+      
+      const vehicles = await storage.getVehiclesByCustomer(customerId);
       res.json(vehicles);
     } catch (error) {
       console.error("Error fetching vehicles:", error);
@@ -226,9 +241,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/vehicles', isAuthenticated, async (req: any, res) => {
+  app.post('/api/vehicles', isAuthenticated, clientOwnershipMiddleware, async (req: any, res) => {
     try {
       const vehicleData = insertVehicleSchema.parse(req.body);
+      
+      // For clients, ensure they can only create vehicles for their own customer
+      if (req.user.role === 'client' && req.clientCustomer) {
+        vehicleData.customerId = req.clientCustomer.id;
+      }
+      
       const vehicle = await storage.createVehicle(vehicleData);
       
       // Audit log
@@ -252,11 +273,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Appointment routes
-  app.get('/api/appointments', isAuthenticated, async (req, res) => {
+  app.get('/api/appointments', isAuthenticated, filterDataByRole, async (req: any, res) => {
     try {
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
-      const appointments = await storage.getAppointments(startDate, endDate);
+      const roleContext = req.roleContext;
+      
+      let appointments;
+      
+      if (roleContext.canAccessAll) {
+        // Admins see all appointments
+        appointments = await storage.getAppointments(startDate, endDate);
+      } else if (roleContext.role === 'client') {
+        // Clients see only their own appointments
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer profile not found" });
+        }
+        appointments = await storage.getAppointmentsByCustomer(customer.id, startDate, endDate);
+      } else {
+        // Technicians see all appointments (they might need to see them for job board)
+        appointments = await storage.getAppointments(startDate, endDate);
+      }
+      
       res.json(appointments);
     } catch (error) {
       console.error("Error fetching appointments:", error);
@@ -264,12 +303,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/appointments', isAuthenticated, async (req: any, res) => {
+  app.post('/api/appointments', isAuthenticated, clientOwnershipMiddleware, async (req: any, res) => {
     try {
       const appointmentData = insertAppointmentSchema.parse({
         ...req.body,
         scheduledDate: new Date(req.body.scheduledDate)
       });
+      
+      // For clients, ensure they can only create appointments for their own customer
+      if (req.user.role === 'client' && req.clientCustomer) {
+        appointmentData.customerId = req.clientCustomer.id;
+      }
+      
       const appointment = await storage.createAppointment(appointmentData);
       
       // Audit log
@@ -292,9 +337,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/appointments/:id', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/appointments/:id', isAuthenticated, clientOwnershipMiddleware, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const userRole = req.user?.role;
+      
+      // Verify ownership before updating
+      const existingAppointment = await storage.getAppointment(id);
+      if (!existingAppointment) {
+        return res.status(404).json({ message: "Appointment not found" });
+      }
+      
+      // For clients, ensure they can only update their own appointments
+      if (userRole === 'client') {
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer || existingAppointment.customerId !== customer.id) {
+          return res.status(403).json({ message: "Access denied - you can only update your own appointments" });
+        }
+      }
+      
       const appointmentData = insertAppointmentSchema.partial().parse({
         ...req.body,
         scheduledDate: req.body.scheduledDate ? new Date(req.body.scheduledDate) : undefined
@@ -370,9 +431,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/repair-orders/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/repair-orders/:id', technicianOrAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const userRole = req.user?.role;
+      
+      // Verify ownership/assignment before updating
+      const existingRepairOrder = await storage.getRepairOrder(id);
+      if (!existingRepairOrder) {
+        return res.status(404).json({ message: "Repair order not found" });
+      }
+      
+      // For technicians, ensure they can only update assigned repair orders
+      if (userRole === 'user' && existingRepairOrder.technicianId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied - you can only update repair orders assigned to you" });
+      }
+      
       // Parse and validate the request body
       const repairOrderData = insertRepairOrderSchema.partial().parse(req.body);
       
@@ -398,10 +472,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Invoice routes
-  app.get('/api/invoices', isAuthenticated, async (req, res) => {
+  // Invoice routes - Admin only for all invoices, clients see their own
+  app.get('/api/invoices', isAuthenticated, filterDataByRole, async (req: any, res) => {
     try {
-      const invoices = await storage.getInvoices();
+      const roleContext = req.roleContext;
+      let invoices;
+      
+      if (roleContext.canAccessAll) {
+        // Admins see all invoices
+        invoices = await storage.getInvoices();
+      } else if (roleContext.role === 'client') {
+        // Clients see only their own invoices
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer profile not found" });
+        }
+        invoices = await storage.getInvoicesByCustomer(customer.id);
+      } else {
+        // Technicians have no access to invoices
+        return res.status(403).json({ message: "Access denied - technicians cannot view invoices" });
+      }
+      
       res.json(invoices);
     } catch (error) {
       console.error("Error fetching invoices:", error);
@@ -409,7 +500,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/invoices', isAuthenticated, async (req: any, res) => {
+  app.post('/api/invoices', adminOnly, async (req: any, res) => {
     try {
       const invoiceData = insertInvoiceSchema.parse(req.body);
       const invoice = await storage.createInvoice(invoiceData);
@@ -434,10 +525,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Inspections routes
-  app.get('/api/inspections', isAuthenticated, async (req, res) => {
+  // Digital Inspection routes - Technicians and Admins only, clients can see their own
+  app.get('/api/inspections', isAuthenticated, filterDataByRole, async (req: any, res) => {
     try {
-      const inspections = await storage.getInspections();
+      const roleContext = req.roleContext;
+      let inspections;
+      
+      if (roleContext.canAccessAll) {
+        // Admins see all inspections
+        inspections = await storage.getInspections();
+      } else if (roleContext.role === 'user') {
+        // Technicians see all inspections (they need to perform them)
+        inspections = await storage.getInspections();
+      } else if (roleContext.role === 'client') {
+        // Clients can see their own inspections
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer profile not found" });
+        }
+        inspections = await storage.getInspectionsByCustomer(customer.id);
+      } else {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       res.json(inspections);
     } catch (error) {
       console.error("Error fetching inspections:", error);
@@ -445,9 +555,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/inspections', isAuthenticated, async (req: any, res) => {
+  app.post('/api/inspections', technicianOrAdmin, clientOwnershipMiddleware, async (req: any, res) => {
     try {
       const inspectionData = insertInspectionSchema.parse(req.body);
+      
+      // For clients, ensure they can only create inspections for their own customer
+      if (req.user.role === 'client' && req.clientCustomer) {
+        inspectionData.customerId = req.clientCustomer.id;
+      }
+      
       const inspection = await storage.createInspection(inspectionData);
       
       // Audit log

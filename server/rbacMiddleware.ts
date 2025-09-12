@@ -118,3 +118,52 @@ export const ensureOwnership = (resourceType: 'customer' | 'vehicle' | 'appointm
     next();
   };
 };
+
+// Factory function to create middleware that validates client ownership for create/update operations
+export const createClientOwnershipMiddleware = (storage: any): RequestHandler => {
+  return async (req: any, res, next) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const userRole = req.user?.role as UserRole;
+    
+    // Skip validation for admins
+    if (userRole === 'admin') {
+      return next();
+    }
+    
+    // For clients, ensure they can only create/update their own data
+    if (userRole === 'client') {
+      try {
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer) {
+          return res.status(404).json({ message: "Customer profile not found" });
+        }
+        
+        // Check if the request body contains customerId and validate ownership
+        const { customerId, vehicleId } = req.body;
+        
+        if (customerId && customerId !== customer.id) {
+          return res.status(403).json({ message: "Access denied - you can only access your own data" });
+        }
+        
+        // If vehicleId is provided, ensure it belongs to the client's customer
+        if (vehicleId) {
+          const vehicle = await storage.getVehicle(vehicleId);
+          if (!vehicle || vehicle.customerId !== customer.id) {
+            return res.status(403).json({ message: "Access denied - vehicle does not belong to you" });
+          }
+        }
+        
+        // Attach customer context for use in route handlers
+        req.clientCustomer = customer;
+      } catch (error) {
+        console.error("Error validating client ownership:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+    
+    next();
+  };
+};

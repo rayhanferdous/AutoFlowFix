@@ -44,6 +44,7 @@ export interface IStorage {
   // Customer operations
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByEmail(email: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer>;
   deleteCustomer(id: string): Promise<void>;
@@ -56,6 +57,7 @@ export interface IStorage {
 
   // Appointment operations
   getAppointments(startDate?: Date, endDate?: Date): Promise<Appointment[]>;
+  getAppointmentsByCustomer(customerId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]>;
   getAppointment(id: string): Promise<Appointment | undefined>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, appointment: Partial<InsertAppointment>): Promise<Appointment>;
@@ -70,12 +72,14 @@ export interface IStorage {
 
   // Invoice operations
   getInvoices(): Promise<Invoice[]>;
+  getInvoicesByCustomer(customerId: string): Promise<Invoice[]>;
   getInvoice(id: string): Promise<Invoice | undefined>;
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice>;
 
   // Inspection operations
   getInspections(): Promise<Inspection[]>;
+  getInspectionsByCustomer(customerId: string): Promise<Inspection[]>;
   getInspection(id: string): Promise<Inspection | undefined>;
   createInspection(inspection: InsertInspection): Promise<Inspection>;
   updateInspection(id: string, inspection: Partial<InsertInspection>): Promise<Inspection>;
@@ -155,6 +159,12 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(customers).orderBy(desc(customers.createdAt));
   }
 
+  // Get customer by user email (for client user to customer mapping)
+  async getCustomerByEmail(email: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.email, email));
+    return customer;
+  }
+
   async getCustomer(id: string): Promise<Customer | undefined> {
     const [customer] = await db.select().from(customers).where(eq(customers.id, id));
     return customer;
@@ -218,6 +228,25 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(appointments).orderBy(appointments.scheduledDate);
   }
 
+  // Get appointments filtered by customer (for client users)
+  async getAppointmentsByCustomer(customerId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]> {
+    if (startDate && endDate) {
+      return await db.select().from(appointments)
+        .where(
+          and(
+            eq(appointments.customerId, customerId),
+            gte(appointments.scheduledDate, startDate),
+            lte(appointments.scheduledDate, endDate)
+          )
+        )
+        .orderBy(appointments.scheduledDate);
+    }
+    
+    return await db.select().from(appointments)
+      .where(eq(appointments.customerId, customerId))
+      .orderBy(appointments.scheduledDate);
+  }
+
   async getAppointment(id: string): Promise<Appointment | undefined> {
     const [appointment] = await db.select().from(appointments).where(eq(appointments.id, id));
     return appointment;
@@ -276,6 +305,13 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
   }
 
+  // Get invoices filtered by customer (for client users)
+  async getInvoicesByCustomer(customerId: string): Promise<Invoice[]> {
+    return await db.select().from(invoices)
+      .where(eq(invoices.customerId, customerId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
   async getInvoice(id: string): Promise<Invoice | undefined> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
     return invoice;
@@ -298,6 +334,13 @@ export class DatabaseStorage implements IStorage {
   // Inspection operations
   async getInspections(): Promise<Inspection[]> {
     return await db.select().from(inspections).orderBy(desc(inspections.createdAt));
+  }
+
+  // Get inspections filtered by customer (for client users)
+  async getInspectionsByCustomer(customerId: string): Promise<Inspection[]> {
+    return await db.select().from(inspections)
+      .where(eq(inspections.customerId, customerId))
+      .orderBy(desc(inspections.createdAt));
   }
 
   async getInspection(id: string): Promise<Inspection | undefined> {
