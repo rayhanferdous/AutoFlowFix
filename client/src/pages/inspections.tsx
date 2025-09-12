@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,23 +10,38 @@ import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/sidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Inspection, InsertInspection } from "@shared/schema";
+import type { Inspection, InsertInspection, Customer, Vehicle } from "@shared/schema";
 
 export default function Inspections() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    customerName: "",
-    vehicleInfo: "",
-    serviceType: "",
     customerId: "",
-    vehicleId: ""
+    vehicleId: "",
+    serviceType: ""
   });
   const { toast } = useToast();
 
-  // Fetch inspections from API
+  // Fetch data from API
   const { data: inspections = [], isLoading } = useQuery<Inspection[]>({
     queryKey: ['/api/inspections'],
   });
+
+  const { data: customers } = useQuery<Customer[]>({
+    queryKey: ["/api/customers"],
+  });
+
+  // Get vehicles for selected customer
+  const { data: vehicles, isLoading: isLoadingVehicles } = useQuery<Vehicle[]>({
+    queryKey: ["/api/customers", formData.customerId, "vehicles"],
+    enabled: !!formData.customerId,
+  });
+
+  // Reset vehicleId when customer changes
+  useEffect(() => {
+    if (formData.customerId) {
+      setFormData(prev => ({ ...prev, vehicleId: "" }));
+    }
+  }, [formData.customerId]);
 
   // Create inspection mutation
   const createInspectionMutation = useMutation({
@@ -34,7 +49,7 @@ export default function Inspections() {
       apiRequest('POST', '/api/inspections', inspection),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
-      setFormData({ customerName: "", vehicleInfo: "", serviceType: "", customerId: "", vehicleId: "" });
+      setFormData({ customerId: "", vehicleId: "", serviceType: "" });
       setIsDialogOpen(false);
       toast({
         title: "Success",
@@ -59,12 +74,12 @@ export default function Inspections() {
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleCreateInspection = async () => {
-    if (!formData.customerName || !formData.vehicleInfo || !formData.serviceType) {
+    if (!formData.customerId || !formData.vehicleId || !formData.serviceType) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -73,12 +88,24 @@ export default function Inspections() {
       return;
     }
 
-    // For now, we'll use placeholder IDs until we integrate with customers/vehicles
+    // Get customer and vehicle info for display
+    const selectedCustomer = customers?.find(c => c.id === formData.customerId);
+    const selectedVehicle = vehicles?.find(v => v.id === formData.vehicleId);
+    
+    if (!selectedCustomer || !selectedVehicle) {
+      toast({
+        title: "Error",
+        description: "Selected customer or vehicle not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const inspectionData: InsertInspection = {
-      customerId: formData.customerId || "placeholder-customer-id",
-      vehicleId: formData.vehicleId || "placeholder-vehicle-id",
-      vehicleInfo: formData.vehicleInfo,
-      customerName: formData.customerName,
+      customerId: formData.customerId,
+      vehicleId: formData.vehicleId,
+      vehicleInfo: `${selectedVehicle.year} ${selectedVehicle.make} ${selectedVehicle.model} - ${selectedVehicle.licensePlate}`,
+      customerName: `${selectedCustomer.firstName} ${selectedCustomer.lastName}`,
       serviceType: formData.serviceType,
       status: "pending",
       checklistItems: 12,
@@ -129,24 +156,43 @@ export default function Inspections() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="customer-name">Customer Name</Label>
-                    <Input
-                      id="customer-name"
-                      value={formData.customerName}
-                      onChange={(e) => handleInputChange('customerName', e.target.value)}
-                      placeholder="Enter customer name"
-                      data-testid="input-customer-name"
-                    />
+                    <Label htmlFor="customer">Customer</Label>
+                    <Select onValueChange={(value) => handleInputChange('customerId', value)}>
+                      <SelectTrigger data-testid="select-customer">
+                        <SelectValue placeholder="Select a customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers?.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.firstName} {customer.lastName} - {customer.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="vehicle-info">Vehicle Information</Label>
-                    <Input
-                      id="vehicle-info"
-                      value={formData.vehicleInfo}
-                      onChange={(e) => handleInputChange('vehicleInfo', e.target.value)}
-                      placeholder="e.g., 2020 Honda Civic - ABC123"
-                      data-testid="input-vehicle-info"
-                    />
+                    <Label htmlFor="vehicle">Vehicle</Label>
+                    <Select 
+                      onValueChange={(value) => handleInputChange('vehicleId', value)}
+                      disabled={!formData.customerId || isLoadingVehicles}
+                    >
+                      <SelectTrigger data-testid="select-vehicle">
+                        <SelectValue 
+                          placeholder={
+                            !formData.customerId ? "Select a customer first" :
+                            isLoadingVehicles ? "Loading vehicles..." :
+                            "Select a vehicle"
+                          } 
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vehicles?.map((vehicle) => (
+                          <SelectItem key={vehicle.id} value={vehicle.id}>
+                            {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="service-type">Service Type</Label>
