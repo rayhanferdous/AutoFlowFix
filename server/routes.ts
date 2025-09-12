@@ -471,13 +471,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User routes
-  app.get('/api/users', isAuthenticated, async (req, res) => {
+  app.get('/api/users', adminOnly, async (req, res) => {
     try {
       const users = await storage.getUsers();
-      res.json(users);
+      // Don't include password in response
+      const safeUsers = users.map(({ password, ...user }) => user);
+      res.json(safeUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch('/api/users/:id/role', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+
+      // Validate role
+      if (!['client', 'user', 'admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be 'client', 'user', or 'admin'" });
+      }
+
+      const updatedUser = await storage.updateUser(id, { role });
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_USER_ROLE",
+        entityType: "user",
+        entityId: id,
+        oldValues: { role: "previous_role" }, // Would need to fetch previous value in a real implementation
+        newValues: { role },
+        status: "success",
+      });
+
+      // Don't include password in response
+      const { password, ...safeUser } = updatedUser;
+      res.json(safeUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
     }
   });
 

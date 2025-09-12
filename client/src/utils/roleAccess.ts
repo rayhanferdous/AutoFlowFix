@@ -96,6 +96,13 @@ export const menuItems: MenuItem[] = [
     roles: ["admin"] // Shop Manager only
   },
   {
+    title: "User Management",
+    path: "/users",
+    icon: "fas fa-users-cog",
+    section: "business",
+    roles: ["admin"] // Shop Manager only
+  },
+  {
     title: "Settings",
     path: "/settings", 
     icon: "fas fa-cog",

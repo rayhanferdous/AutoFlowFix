@@ -20,6 +20,7 @@ import Invoices from "@/pages/invoices";
 import Inventory from "@/pages/inventory";
 import Reporting from "@/pages/reporting";
 import Settings from "@/pages/settings";
+import Users from "@/pages/users";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -86,6 +87,11 @@ function Router() {
           <Route path="/reporting">
             <ProtectedRoute path="/reporting">
               <Reporting />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/users">
+            <ProtectedRoute path="/users">
+              <Users />
             </ProtectedRoute>
           </Route>
           <Route path="/settings">
