@@ -256,11 +256,15 @@ export const insertVehicleSchema = createInsertSchema(vehicles).omit({
   updatedAt: true,
 });
 
-export const insertAppointmentSchema = createInsertSchema(appointments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
+export const insertAppointmentSchema = createInsertSchema(appointments)
+  .omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    scheduledDate: z.coerce.date(),
+  });
 
 export const insertRepairOrderSchema = createInsertSchema(repairOrders).omit({
   id: true,

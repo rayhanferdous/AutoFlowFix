@@ -102,11 +102,9 @@ export default function Appointments() {
   });
 
   // Reset vehicleId when customer changes
-  const [prevCustomerId, setPrevCustomerId] = useState("");
-  if (selectedCustomerId !== prevCustomerId) {
-    setPrevCustomerId(selectedCustomerId);
+  useEffect(() => {
     form.setValue("vehicleId", "");
-  }
+  }, [selectedCustomerId, form]);
 
   const onSubmit = (data: z.infer<typeof insertAppointmentSchema>) => {
     createAppointmentMutation.mutate(data);
