@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,10 +96,17 @@ export default function Appointments() {
 
   // Get vehicles for selected customer
   const selectedCustomerId = form.watch("customerId");
-  const { data: vehicles } = useQuery({
+  const { data: vehicles, isLoading: isLoadingVehicles, error: vehiclesError } = useQuery({
     queryKey: ["/api/customers", selectedCustomerId, "vehicles"],
     enabled: !!selectedCustomerId,
   });
+
+  // Reset vehicleId when customer changes
+  const [prevCustomerId, setPrevCustomerId] = useState("");
+  if (selectedCustomerId !== prevCustomerId) {
+    setPrevCustomerId(selectedCustomerId);
+    form.setValue("vehicleId", "");
+  }
 
   const onSubmit = (data: z.infer<typeof insertAppointmentSchema>) => {
     createAppointmentMutation.mutate(data);
@@ -185,18 +192,36 @@ export default function Appointments() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Vehicle</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                            disabled={!selectedCustomerId || isLoadingVehicles}
+                          >
                             <FormControl>
                               <SelectTrigger data-testid="select-vehicle">
-                                <SelectValue placeholder="Select a vehicle" />
+                                <SelectValue 
+                                  placeholder={
+                                    !selectedCustomerId ? "Select a customer first" :
+                                    isLoadingVehicles ? "Loading vehicles..." :
+                                    vehiclesError ? "Error loading vehicles" :
+                                    "Select a vehicle"
+                                  } 
+                                />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {Array.isArray(vehicles) ? vehicles.map((vehicle: any) => (
-                                <SelectItem key={vehicle.id} value={vehicle.id}>
-                                  {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
-                                </SelectItem>
-                              )) : null}
+                              {Array.isArray(vehicles) && vehicles.length > 0 ? 
+                                vehicles.map((vehicle: any) => (
+                                  <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                                    {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                                  </SelectItem>
+                                )) : 
+                                selectedCustomerId && !isLoadingVehicles && (
+                                  <div className="p-2 text-sm text-muted-foreground">
+                                    No vehicles found for this customer
+                                  </div>
+                                )
+                              }
                             </SelectContent>
                           </Select>
                           <FormMessage />
