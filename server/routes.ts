@@ -353,12 +353,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/repair-orders/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const repairOrderData = insertRepairOrderSchema.partial().omit({ 
-        id: true, 
-        orderNumber: true,
-        createdAt: true, 
-        updatedAt: true 
-      }).parse(req.body);
+      // Parse and validate the request body
+      const repairOrderData = insertRepairOrderSchema.partial().parse(req.body);
       
       const repairOrder = await storage.updateRepairOrder(id, repairOrderData);
       
