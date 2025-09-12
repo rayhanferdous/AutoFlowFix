@@ -31,10 +31,7 @@ export default function Inspections() {
   // Create inspection mutation
   const createInspectionMutation = useMutation({
     mutationFn: (inspection: InsertInspection) => 
-      apiRequest('/api/inspections', {
-        method: 'POST',
-        body: inspection,
-      }),
+      apiRequest('POST', '/api/inspections', inspection),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
       setFormData({ customerName: "", vehicleInfo: "", serviceType: "", customerId: "", vehicleId: "" });
@@ -202,8 +199,8 @@ export default function Inspections() {
                       <CardTitle className="text-lg">{inspection.id}</CardTitle>
                       <CardDescription>{inspection.vehicleInfo}</CardDescription>
                     </div>
-                    <Badge className={getStatusColor(inspection.status)}>
-                      {inspection.status}
+                    <Badge className={getStatusColor(inspection.status || "pending")}>
+                      {inspection.status || "pending"}
                     </Badge>
                   </div>
                 </CardHeader>
