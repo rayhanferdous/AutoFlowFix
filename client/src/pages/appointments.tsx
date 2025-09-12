@@ -47,6 +47,13 @@ export default function Appointments() {
     queryKey: ["/api/customers"],
   });
 
+  // Get vehicles for selected customer
+  const selectedCustomerId = form.watch("customerId");
+  const { data: vehicles } = useQuery({
+    queryKey: ["/api/customers", selectedCustomerId, "vehicles"],
+    enabled: !!selectedCustomerId,
+  });
+
   const createAppointmentMutation = useMutation({
     mutationFn: async (appointmentData: z.infer<typeof insertAppointmentSchema>) => {
       return await apiRequest("POST", "/api/appointments", appointmentData);
@@ -163,6 +170,31 @@ export default function Appointments() {
                               {Array.isArray(customers) ? customers.map((customer: any) => (
                                 <SelectItem key={customer.id} value={customer.id}>
                                   {customer.firstName} {customer.lastName}
+                                </SelectItem>
+                              )) : null}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="vehicleId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Vehicle</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-vehicle">
+                                <SelectValue placeholder="Select a vehicle" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {Array.isArray(vehicles) ? vehicles.map((vehicle: any) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
                                 </SelectItem>
                               )) : null}
                             </SelectContent>
