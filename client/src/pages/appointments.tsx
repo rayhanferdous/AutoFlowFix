@@ -34,10 +34,10 @@ type Appointment = {
 export default function Appointments() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [selectedDate, setSelectedDate] = useState("");
+  const [showingAllAppointments, setShowingAllAppointments] = useState(true);
+  const [viewingAppointment, setViewingAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: ["/api/appointments"],
@@ -80,6 +80,39 @@ export default function Appointments() {
     },
   });
 
+  const updateAppointmentMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof insertAppointmentSchema> }) => {
+      return await apiRequest("PATCH", `/api/appointments/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      setEditingAppointment(null);
+      editForm.reset();
+      toast({
+        title: "Success",
+        description: "Appointment updated successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update appointment",
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm<z.infer<typeof insertAppointmentSchema>>({
     resolver: zodResolver(insertAppointmentSchema),
     defaultValues: {
@@ -94,11 +127,32 @@ export default function Appointments() {
     },
   });
 
-  // Get vehicles for selected customer
+  const editForm = useForm<z.infer<typeof insertAppointmentSchema>>({
+    resolver: zodResolver(insertAppointmentSchema),
+    defaultValues: {
+      customerId: "",
+      vehicleId: "",
+      scheduledDate: new Date(),
+      duration: 60,
+      serviceType: "",
+      description: "",
+      status: "scheduled",
+      notes: "",
+    },
+  });
+
+  // Get vehicles for selected customer (create form)
   const selectedCustomerId = form.watch("customerId");
   const { data: vehicles, isLoading: isLoadingVehicles, error: vehiclesError } = useQuery({
     queryKey: ["/api/customers", selectedCustomerId, "vehicles"],
     enabled: !!selectedCustomerId,
+  });
+
+  // Get vehicles for selected customer (edit form)
+  const selectedEditCustomerId = editForm.watch("customerId");
+  const { data: editVehicles, isLoading: isLoadingEditVehicles, error: editVehiclesError } = useQuery({
+    queryKey: ["/api/customers", selectedEditCustomerId, "vehicles"],
+    enabled: !!selectedEditCustomerId,
   });
 
   // Reset vehicleId when customer changes
@@ -106,8 +160,34 @@ export default function Appointments() {
     form.setValue("vehicleId", "");
   }, [selectedCustomerId, form]);
 
+  useEffect(() => {
+    editForm.setValue("vehicleId", "");
+  }, [selectedEditCustomerId, editForm]);
+
+  // Populate edit form when editing appointment changes
+  useEffect(() => {
+    if (editingAppointment) {
+      editForm.reset({
+        customerId: editingAppointment.customerId,
+        vehicleId: editingAppointment.vehicleId,
+        scheduledDate: new Date(editingAppointment.scheduledDate),
+        duration: editingAppointment.duration,
+        serviceType: editingAppointment.serviceType,
+        description: editingAppointment.description || "",
+        status: editingAppointment.status,
+        notes: editingAppointment.notes || "",
+      });
+    }
+  }, [editingAppointment, editForm]);
+
   const onSubmit = (data: z.infer<typeof insertAppointmentSchema>) => {
     createAppointmentMutation.mutate(data);
+  };
+
+  const onEditSubmit = (data: z.infer<typeof insertAppointmentSchema>) => {
+    if (editingAppointment) {
+      updateAppointmentMutation.mutate({ id: editingAppointment.id, data });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -121,10 +201,16 @@ export default function Appointments() {
     }
   };
 
-  const todaysAppointments = Array.isArray(appointments) ? appointments.filter((appointment: Appointment) => {
-    const appointmentDate = new Date(appointment.scheduledDate).toISOString().split('T')[0];
-    return appointmentDate === selectedDate;
-  }) : [];
+  const filteredAppointments = Array.isArray(appointments) ? 
+    (selectedDate && !showingAllAppointments ? 
+      appointments.filter((appointment: Appointment) => {
+        const appointmentDate = new Date(appointment.scheduledDate).toISOString().split('T')[0];
+        return appointmentDate === selectedDate;
+      }) : 
+      [...appointments].sort((a: Appointment, b: Appointment) => 
+        new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+      )
+    ) : [];
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -265,8 +351,20 @@ export default function Appointments() {
                               <Input 
                                 type="datetime-local" 
                                 {...field}
-                                value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ""}
-                                onChange={(e) => field.onChange(new Date(e.target.value))}
+                                value={field.value ? (() => {
+                                  const date = new Date(field.value);
+                                  const offset = date.getTimezoneOffset();
+                                  const localDate = new Date(date.getTime() - offset * 60000);
+                                  return localDate.toISOString().slice(0, 16);
+                                })() : ""}
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    const localDate = new Date(e.target.value);
+                                    field.onChange(localDate);
+                                  } else {
+                                    field.onChange(undefined);
+                                  }
+                                }}
                                 data-testid="input-scheduled-date"
                               />
                             </FormControl>
@@ -352,22 +450,38 @@ export default function Appointments() {
             <CardContent>
               <div className="flex gap-4 items-center">
                 <div className="flex-1 max-w-xs">
-                  <Label htmlFor="date-select">Select Date</Label>
+                  <Label htmlFor="date-select">Filter by Date (optional)</Label>
                   <Input
                     id="date-select"
                     type="date"
                     value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedDate(e.target.value);
+                      setShowingAllAppointments(!e.target.value);
+                    }}
                     data-testid="input-select-date"
                   />
                 </div>
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
-                    onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                    onClick={() => {
+                      setSelectedDate(new Date().toISOString().split('T')[0]);
+                      setShowingAllAppointments(false);
+                    }}
                     data-testid="button-today"
                   >
                     Today
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSelectedDate("");
+                      setShowingAllAppointments(true);
+                    }}
+                    data-testid="button-show-all"
+                  >
+                    Show All
                   </Button>
                 </div>
               </div>
@@ -378,15 +492,18 @@ export default function Appointments() {
           <Card>
             <CardHeader>
               <CardTitle>
-                Appointments for {new Date(selectedDate + 'T00:00:00').toLocaleDateString("en-US", { 
-                  weekday: "long", 
-                  year: "numeric", 
-                  month: "long", 
-                  day: "numeric" 
-                })}
+                {showingAllAppointments ? 
+                  "All Appointments" : 
+                  `Appointments for ${new Date(selectedDate + 'T00:00:00').toLocaleDateString("en-US", { 
+                    weekday: "long", 
+                    year: "numeric", 
+                    month: "long", 
+                    day: "numeric" 
+                  })}`
+                }
               </CardTitle>
               <CardDescription>
-                {todaysAppointments.length} appointment(s) scheduled
+                {filteredAppointments.length} appointment(s) {showingAllAppointments ? "total" : "scheduled"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -403,12 +520,12 @@ export default function Appointments() {
                     </div>
                   ))}
                 </div>
-              ) : todaysAppointments.length === 0 ? (
+              ) : filteredAppointments.length === 0 ? (
                 <div className="text-center py-12" data-testid="text-no-appointments">
                   <i className="fas fa-calendar-alt text-4xl text-muted-foreground mb-4"></i>
                   <h3 className="text-lg font-semibold text-foreground mb-2">No appointments scheduled</h3>
                   <p className="text-muted-foreground mb-4">
-                    No appointments found for the selected date.
+                    {showingAllAppointments ? "No appointments have been scheduled yet." : "No appointments found for the selected date."}
                   </p>
                   <Button onClick={() => setIsDialogOpen(true)} data-testid="button-schedule-first">
                     <i className="fas fa-calendar-plus mr-2"></i>
@@ -417,7 +534,7 @@ export default function Appointments() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {todaysAppointments.map((appointment: Appointment) => (
+                  {filteredAppointments.map((appointment: Appointment) => (
                     <div 
                       key={appointment.id} 
                       className="flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-accent transition-colors"
@@ -438,7 +555,15 @@ export default function Appointments() {
                         </div>
                         <div className="text-sm text-muted-foreground">
                           <p>
-                            <i className="fas fa-clock mr-1"></i>
+                            <i className="fas fa-calendar mr-1"></i>
+                            {new Date(appointment.scheduledDate).toLocaleDateString("en-US", { 
+                              weekday: "short",
+                              month: "short", 
+                              day: "numeric",
+                              year: "numeric"
+                            })}
+                            {" "}
+                            <i className="fas fa-clock ml-2 mr-1"></i>
                             {new Date(appointment.scheduledDate).toLocaleTimeString("en-US", { 
                               hour: "numeric", 
                               minute: "2-digit",
@@ -452,11 +577,21 @@ export default function Appointments() {
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" data-testid={`button-view-appointment-${appointment.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setViewingAppointment(appointment)}
+                          data-testid={`button-view-appointment-${appointment.id}`}
+                        >
                           <i className="fas fa-eye mr-1"></i>
                           View
                         </Button>
-                        <Button variant="ghost" size="sm" data-testid={`button-edit-appointment-${appointment.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setEditingAppointment(appointment)}
+                          data-testid={`button-edit-appointment-${appointment.id}`}
+                        >
                           <i className="fas fa-edit mr-1"></i>
                           Edit
                         </Button>
@@ -469,6 +604,330 @@ export default function Appointments() {
           </Card>
         </div>
       </main>
+
+      {/* View Appointment Dialog */}
+      <Dialog open={!!viewingAppointment} onOpenChange={() => setViewingAppointment(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Appointment Details</DialogTitle>
+            <DialogDescription>
+              View appointment information and status.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewingAppointment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Service Type</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {viewingAppointment.serviceType.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <div className="mt-1">
+                    <Badge className={getStatusColor(viewingAppointment.status)}>
+                      {viewingAppointment.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Date & Time</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {new Date(viewingAppointment.scheduledDate).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric"
+                    })}
+                    <br />
+                    {new Date(viewingAppointment.scheduledDate).toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Duration</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {viewingAppointment.duration} minutes
+                  </p>
+                </div>
+              </div>
+              
+              {viewingAppointment.description && (
+                <div>
+                  <Label className="text-sm font-medium">Description</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {viewingAppointment.description}
+                  </p>
+                </div>
+              )}
+              
+              {viewingAppointment.notes && (
+                <div>
+                  <Label className="text-sm font-medium">Notes</Label>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {viewingAppointment.notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Appointment Dialog */}
+      <Dialog open={!!editingAppointment} onOpenChange={() => setEditingAppointment(null)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Appointment</DialogTitle>
+            <DialogDescription>
+              Update appointment information and schedule.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+              <FormField
+                control={editForm.control}
+                name="customerId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customer</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="edit-select-customer">
+                          <SelectValue placeholder="Select a customer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Array.isArray(customers) ? customers.map((customer: any) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.firstName} {customer.lastName}
+                          </SelectItem>
+                        )) : null}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="vehicleId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vehicle</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      disabled={!selectedEditCustomerId || isLoadingEditVehicles}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="edit-select-vehicle">
+                          <SelectValue 
+                            placeholder={
+                              !selectedEditCustomerId ? "Select a customer first" :
+                              isLoadingEditVehicles ? "Loading vehicles..." :
+                              editVehiclesError ? "Error loading vehicles" :
+                              "Select a vehicle"
+                            } 
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {Array.isArray(editVehicles) && editVehicles.length > 0 ? 
+                          editVehicles.map((vehicle: any) => (
+                            <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                              {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                            </SelectItem>
+                          )) : 
+                          selectedEditCustomerId && !isLoadingEditVehicles && (
+                            <div className="p-2 text-sm text-muted-foreground">
+                              No vehicles found for this customer
+                            </div>
+                          )
+                        }
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="serviceType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Service Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="edit-select-service-type">
+                          <SelectValue placeholder="Select service type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="oil_change">Oil Change</SelectItem>
+                        <SelectItem value="tire_service">Tire Service</SelectItem>
+                        <SelectItem value="brake_service">Brake Service</SelectItem>
+                        <SelectItem value="engine_diagnostic">Engine Diagnostic</SelectItem>
+                        <SelectItem value="general_maintenance">General Maintenance</SelectItem>
+                        <SelectItem value="inspection">Vehicle Inspection</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={editForm.control}
+                  name="scheduledDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date & Time</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="datetime-local" 
+                          {...field}
+                          value={field.value ? (() => {
+                            const date = new Date(field.value);
+                            const offset = date.getTimezoneOffset();
+                            const localDate = new Date(date.getTime() - offset * 60000);
+                            return localDate.toISOString().slice(0, 16);
+                          })() : ""}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const localDate = new Date(e.target.value);
+                              field.onChange(localDate);
+                            } else {
+                              field.onChange(undefined);
+                            }
+                          }}
+                          data-testid="edit-input-scheduled-date"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={editForm.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Duration (minutes)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="60" 
+                          {...field}
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          data-testid="edit-input-duration"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={editForm.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                      <FormControl>
+                        <SelectTrigger data-testid="edit-select-status">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="scheduled">Scheduled</SelectItem>
+                        <SelectItem value="confirmed">Confirmed</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Describe the service needed..." 
+                        {...field} 
+                        value={field.value || ""}
+                        data-testid="edit-textarea-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={editForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Additional notes..." 
+                        {...field} 
+                        value={field.value || ""}
+                        data-testid="edit-textarea-notes"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setEditingAppointment(null)}
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateAppointmentMutation.isPending}
+                  data-testid="button-save-appointment"
+                >
+                  {updateAppointmentMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -284,6 +284,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/appointments/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const appointmentData = insertAppointmentSchema.partial().parse({
+        ...req.body,
+        scheduledDate: req.body.scheduledDate ? new Date(req.body.scheduledDate) : undefined
+      });
+      
+      const appointment = await storage.updateAppointment(id, appointmentData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_APPOINTMENT",
+        entityType: "appointment",
+        entityId: appointment.id,
+        newValues: appointment,
+        status: "success",
+      });
+
+      res.json(appointment);
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid appointment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update appointment" });
+    }
+  });
+
   // Repair Order routes
   app.get('/api/repair-orders', isAuthenticated, async (req, res) => {
     try {
