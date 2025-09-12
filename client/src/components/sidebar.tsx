@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getMenuItemsForRole, sections, getRoleDisplayName, type UserRole } from "@/utils/roleAccess";
 
 export default function Sidebar() {
   const [location] = useLocation();
@@ -31,92 +32,9 @@ export default function Sidebar() {
     },
   });
 
-  const menuItems = [
-    {
-      title: "Dashboard",
-      path: "/",
-      icon: "fas fa-tachometer-alt",
-      section: "main"
-    },
-    {
-      title: "Digital Inspections", 
-      path: "/inspections",
-      icon: "fas fa-clipboard-check",
-      section: "operations"
-    },
-    {
-      title: "Appointments",
-      path: "/appointments", 
-      icon: "fas fa-calendar-alt",
-      section: "operations"
-    },
-    {
-      title: "Repair Orders",
-      path: "/repair-orders",
-      icon: "fas fa-wrench", 
-      section: "operations"
-    },
-    {
-      title: "Job Board",
-      path: "/job-board",
-      icon: "fas fa-tasks",
-      section: "operations"
-    },
-    {
-      title: "Customer Management",
-      path: "/customers",
-      icon: "fas fa-users",
-      section: "customer"
-    },
-    {
-      title: "Two-Way Texting",
-      path: "/messaging",
-      icon: "fas fa-sms",
-      section: "customer"
-    },
-    {
-      title: "Reviews Campaign",
-      path: "/reviews",
-      icon: "fas fa-star",
-      section: "customer"
-    },
-    {
-      title: "Customer Portal",
-      path: "/customer-portal",
-      icon: "fas fa-user-circle",
-      section: "customer"
-    },
-    {
-      title: "Invoices & Payments",
-      path: "/invoices",
-      icon: "fas fa-file-invoice-dollar",
-      section: "business"
-    },
-    {
-      title: "Inventory",
-      path: "/inventory",
-      icon: "fas fa-boxes",
-      section: "business"
-    },
-    {
-      title: "Reporting",
-      path: "/reporting",
-      icon: "fas fa-chart-line",
-      section: "business"
-    },
-    {
-      title: "Settings",
-      path: "/settings", 
-      icon: "fas fa-cog",
-      section: "business"
-    }
-  ];
-
-  const sections = {
-    operations: "Operations",
-    customer: "Customer", 
-    business: "Business"
-  };
+  // Get user role and filter menu items accordingly
+  const userRole = (user?.role as UserRole) || 'user';
+  const allowedMenuItems = getMenuItemsForRole(userRole);
 
   const handleLogout = () => {
     logoutMutation.mutate();
@@ -185,7 +103,7 @@ export default function Sidebar() {
               </h3>
             )}
             <div className="space-y-1">
-              {menuItems
+              {allowedMenuItems
                 .filter(item => item.section === sectionKey)
                 .map((item) => (
                   <Link key={item.path} href={item.path}>
@@ -228,7 +146,7 @@ export default function Sidebar() {
                     : user?.email || "User"
                   }
                 </p>
-                <p className="text-xs text-muted-foreground">Shop Manager</p>
+                <p className="text-xs text-muted-foreground">{getRoleDisplayName(userRole)}</p>
               </div>
               <Button
                 variant="ghost"
