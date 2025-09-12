@@ -79,33 +79,23 @@ export default function Sidebar() {
 
       {/* Navigation Menu */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {/* Dashboard */}
-        <Link href="/">
-          <div 
-            className={`px-3 py-2 rounded-md cursor-pointer transition-colors flex items-center gap-3 ${
-              isActive("/") 
-                ? "bg-primary text-primary-foreground" 
-                : "hover:bg-accent text-accent-foreground"
-            }`}
-            data-testid="nav-dashboard"
-          >
-            <i className="fas fa-tachometer-alt w-5"></i>
-            {!isCollapsed && <span>Dashboard</span>}
-          </div>
-        </Link>
-        
         {/* Menu Sections */}
-        {Object.entries(sections).map(([sectionKey, sectionTitle]) => (
-          <div key={sectionKey}>
-            {!isCollapsed && (
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 mt-6">
-                {sectionTitle}
-              </h3>
-            )}
-            <div className="space-y-1">
-              {allowedMenuItems
-                .filter(item => item.section === sectionKey)
-                .map((item) => (
+        {Object.entries(sections).map(([sectionKey, sectionTitle]) => {
+          // Get items for this section
+          const sectionItems = allowedMenuItems.filter(item => item.section === sectionKey);
+          
+          // Only render section if it has items
+          if (sectionItems.length === 0) return null;
+          
+          return (
+            <div key={sectionKey}>
+              {!isCollapsed && sectionKey !== 'main' && (
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 mt-6">
+                  {sectionTitle}
+                </h3>
+              )}
+              <div className="space-y-1">
+                {sectionItems.map((item) => (
                   <Link key={item.path} href={item.path}>
                     <div 
                       className={`px-3 py-2 rounded-md cursor-pointer transition-colors flex items-center gap-3 ${
@@ -120,9 +110,10 @@ export default function Sidebar() {
                     </div>
                   </Link>
                 ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User Profile */}
