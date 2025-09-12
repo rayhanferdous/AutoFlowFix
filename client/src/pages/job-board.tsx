@@ -58,7 +58,7 @@ export default function JobBoard() {
       return await apiRequest("PUT", `/api/repair-orders/${jobData.repairOrderId}`, {
         technicianId: jobData.technicianId,
         priority: jobData.priority,
-        laborHours: parseFloat(jobData.laborHours),
+        laborHours: jobData.laborHours, // Send as string, backend will handle conversion
         diagnosis: jobData.notes || "",
       });
     },
