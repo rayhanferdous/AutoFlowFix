@@ -595,7 +595,7 @@ export default function RepairOrders() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value || "created"}>
+                        <Select onValueChange={field.onChange} value={field.value || "created"}>
                           <FormControl>
                             <SelectTrigger data-testid="select-edit-status">
                               <SelectValue placeholder="Select status" />
@@ -622,7 +622,7 @@ export default function RepairOrders() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-edit-customer">
                               <SelectValue placeholder="Select a customer" />
@@ -649,7 +649,7 @@ export default function RepairOrders() {
                         <FormLabel>Vehicle</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
-                          defaultValue={field.value}
+                          value={field.value}
                           disabled={!editCustomerId || isLoadingEditVehicles}
                         >
                           <FormControl>
@@ -684,7 +684,7 @@ export default function RepairOrders() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Priority</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value || "normal"}>
+                        <Select onValueChange={field.onChange} value={field.value || "normal"}>
                           <FormControl>
                             <SelectTrigger data-testid="select-edit-priority">
                               <SelectValue placeholder="Select priority" />
