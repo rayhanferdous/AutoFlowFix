@@ -39,6 +39,9 @@ export default function RepairOrders() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
 
   const { data: repairOrders, isLoading } = useQuery({
     queryKey: ["/api/repair-orders"],
@@ -111,6 +114,93 @@ export default function RepairOrders() {
     },
   });
 
+  const updateRepairOrderMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: z.infer<typeof insertRepairOrderSchema> }) => {
+      return await apiRequest("PUT", `/api/repair-orders/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/repair-orders"] });
+      setIsEditDialogOpen(false);
+      setSelectedOrder(null);
+      editForm.reset();
+      toast({
+        title: "Success",
+        description: "Repair order updated successfully",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update repair order",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editForm = useForm<z.infer<typeof insertRepairOrderSchema>>({
+    resolver: zodResolver(insertRepairOrderSchema),
+    defaultValues: {
+      orderNumber: "",
+      customerId: "",
+      vehicleId: "",
+      technicianId: "",
+      status: "created",
+      priority: "normal",
+      description: "",
+      diagnosis: "",
+      estimatedCost: "",
+      actualCost: "",
+      laborHours: "",
+    },
+  });
+
+  const editCustomerId = editForm.watch("customerId");
+  
+  const { data: editVehicles, isLoading: isLoadingEditVehicles } = useQuery({
+    queryKey: ["/api/customers", editCustomerId, "vehicles"],
+    enabled: !!editCustomerId && isEditDialogOpen,
+  });
+
+  useEffect(() => {
+    if (editCustomerId) {
+      editForm.setValue("vehicleId", "");
+    }
+  }, [editCustomerId, editForm]);
+
+  const handleViewOrder = (order: RepairOrder) => {
+    setSelectedOrder(order);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditOrder = (order: RepairOrder) => {
+    setSelectedOrder(order);
+    editForm.reset({
+      orderNumber: order.orderNumber,
+      customerId: order.customerId,
+      vehicleId: order.vehicleId,
+      technicianId: order.technicianId || "",
+      status: order.status,
+      priority: order.priority,
+      description: order.description,
+      diagnosis: order.diagnosis || "",
+      estimatedCost: order.estimatedCost || "",
+      actualCost: order.actualCost || "",
+      laborHours: order.laborHours || "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
   const onSubmit = (data: z.infer<typeof insertRepairOrderSchema>) => {
     // Convert string values to proper types
     const formattedData = {
@@ -121,6 +211,19 @@ export default function RepairOrders() {
       technicianId: data.technicianId || null,
     };
     createRepairOrderMutation.mutate(formattedData);
+  };
+
+  const onEditSubmit = (data: z.infer<typeof insertRepairOrderSchema>) => {
+    if (!selectedOrder) return;
+    // Convert string values to proper types
+    const formattedData = {
+      ...data,
+      estimatedCost: data.estimatedCost ? data.estimatedCost : null,
+      actualCost: data.actualCost ? data.actualCost : null,
+      laborHours: data.laborHours ? data.laborHours : null,
+      technicianId: data.technicianId || null,
+    };
+    updateRepairOrderMutation.mutate({ id: selectedOrder.id, data: formattedData });
   };
 
   const getStatusColor = (status: string) => {
@@ -370,6 +473,361 @@ export default function RepairOrders() {
           </div>
         </header>
 
+        {/* View Repair Order Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>View Repair Order</DialogTitle>
+              <DialogDescription>
+                Repair order details (read-only)
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedOrder && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Order Number</label>
+                    <p className="font-medium">{selectedOrder.orderNumber}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                    <div className="mt-1">
+                      <Badge className={getStatusColor(selectedOrder.status)}>
+                        {selectedOrder.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Priority</label>
+                    <div className="mt-1">
+                      <Badge className={getPriorityColor(selectedOrder.priority)}>
+                        {selectedOrder.priority}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Created</label>
+                    <p>{new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Description</label>
+                  <p className="mt-1 text-sm bg-muted p-3 rounded border">{selectedOrder.description}</p>
+                </div>
+                
+                {selectedOrder.diagnosis && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Diagnosis</label>
+                    <p className="mt-1 text-sm bg-muted p-3 rounded border">{selectedOrder.diagnosis}</p>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-3 gap-4">
+                  {selectedOrder.estimatedCost && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Estimated Cost</label>
+                      <p className="font-medium">${selectedOrder.estimatedCost}</p>
+                    </div>
+                  )}
+                  {selectedOrder.actualCost && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Actual Cost</label>
+                      <p className="font-medium">${selectedOrder.actualCost}</p>
+                    </div>
+                  )}
+                  {selectedOrder.laborHours && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Labor Hours</label>
+                      <p className="font-medium">{selectedOrder.laborHours}h</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            <div className="flex justify-end">
+              <Button onClick={() => setIsViewDialogOpen(false)} data-testid="button-close-view">
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Repair Order Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="sm:max-w-[700px]">
+            <DialogHeader>
+              <DialogTitle>Edit Repair Order</DialogTitle>
+              <DialogDescription>
+                Update repair order details
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="orderNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Order Number</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            data-testid="input-edit-order-number"
+                            readOnly
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || "created"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-status">
+                              <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="created">Created</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="delivered">Delivered</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="customerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Customer</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-customer">
+                              <SelectValue placeholder="Select a customer" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Array.isArray(customers) ? customers.map((customer: any) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.firstName} {customer.lastName}
+                              </SelectItem>
+                            )) : null}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="vehicleId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vehicle</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                          disabled={!editCustomerId || isLoadingEditVehicles}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-vehicle">
+                              <SelectValue 
+                                placeholder={
+                                  !editCustomerId ? "Select a customer first" :
+                                  isLoadingEditVehicles ? "Loading vehicles..." :
+                                  "Select a vehicle"
+                                } 
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {Array.isArray(editVehicles) ? editVehicles.map((vehicle: any) => (
+                              <SelectItem key={vehicle.id} value={vehicle.id}>
+                                {vehicle.year} {vehicle.make} {vehicle.model} - {vehicle.licensePlate}
+                              </SelectItem>
+                            )) : null}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value || "normal"}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-priority">
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="estimatedCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Estimated Cost</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="0.00" 
+                            {...field} 
+                            value={field.value || ""}
+                            data-testid="input-edit-estimated-cost"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="actualCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Actual Cost</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01"
+                            placeholder="0.00" 
+                            {...field} 
+                            value={field.value || ""}
+                            data-testid="input-edit-actual-cost"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="laborHours"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Labor Hours</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.5"
+                            placeholder="0" 
+                            {...field} 
+                            value={field.value || ""}
+                            data-testid="input-edit-labor-hours"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Describe the repair work needed..." 
+                          {...field} 
+                          value={field.value || ""}
+                          data-testid="textarea-edit-description"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="diagnosis"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Diagnosis</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Updated diagnosis or notes..." 
+                          {...field} 
+                          value={field.value || ""}
+                          data-testid="textarea-edit-diagnosis"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsEditDialogOpen(false)}
+                    data-testid="button-cancel-edit"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={updateRepairOrderMutation.isPending}
+                    data-testid="button-submit-edit-repair-order"
+                  >
+                    {updateRepairOrderMutation.isPending ? "Updating..." : "Update Repair Order"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
         <div className="flex-1 p-8 space-y-6">
           {/* Status Filter */}
           <Card>
@@ -488,11 +946,21 @@ export default function RepairOrders() {
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" data-testid={`button-view-repair-order-${order.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleViewOrder(order)}
+                          data-testid={`button-view-repair-order-${order.id}`}
+                        >
                           <i className="fas fa-eye mr-1"></i>
                           View
                         </Button>
-                        <Button variant="ghost" size="sm" data-testid={`button-edit-repair-order-${order.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => handleEditOrder(order)}
+                          data-testid={`button-edit-repair-order-${order.id}`}
+                        >
                           <i className="fas fa-edit mr-1"></i>
                           Edit
                         </Button>
