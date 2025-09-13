@@ -58,6 +58,7 @@ export interface IStorage {
   // Appointment operations
   getAppointments(startDate?: Date, endDate?: Date): Promise<Appointment[]>;
   getAppointmentsByCustomer(customerId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]>;
+  getAppointmentsByTechnician(technicianId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]>;
   getAppointment(id: string): Promise<Appointment | undefined>;
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
   updateAppointment(id: string, appointment: Partial<InsertAppointment>): Promise<Appointment>;
@@ -66,6 +67,7 @@ export interface IStorage {
   // Repair Order operations
   getRepairOrders(): Promise<RepairOrder[]>;
   getRepairOrdersByTechnician(technicianId: string): Promise<RepairOrder[]>;
+  getRepairOrdersByCustomer(customerId: string): Promise<RepairOrder[]>;
   getRepairOrder(id: string): Promise<RepairOrder | undefined>;
   createRepairOrder(repairOrder: InsertRepairOrder): Promise<RepairOrder>;
   updateRepairOrder(id: string, repairOrder: Partial<InsertRepairOrder>): Promise<RepairOrder>;
@@ -80,6 +82,7 @@ export interface IStorage {
   // Inspection operations
   getInspections(): Promise<Inspection[]>;
   getInspectionsByCustomer(customerId: string): Promise<Inspection[]>;
+  getInspectionsByTechnician(technicianId: string): Promise<Inspection[]>;
   getInspection(id: string): Promise<Inspection | undefined>;
   createInspection(inspection: InsertInspection): Promise<Inspection>;
   updateInspection(id: string, inspection: Partial<InsertInspection>): Promise<Inspection>;
@@ -247,6 +250,30 @@ export class DatabaseStorage implements IStorage {
       .orderBy(appointments.scheduledDate);
   }
 
+  // Get appointments filtered by technician assignment (for technician users)
+  async getAppointmentsByTechnician(technicianId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]> {
+    const query = db.selectDistinct().from(appointments)
+      .innerJoin(repairOrders, eq(repairOrders.appointmentId, appointments.id))
+      .where(eq(repairOrders.technicianId, technicianId));
+
+    if (startDate && endDate) {
+      return await query
+        .where(
+          and(
+            eq(repairOrders.technicianId, technicianId),
+            gte(appointments.scheduledDate, startDate),
+            lte(appointments.scheduledDate, endDate)
+          )
+        )
+        .orderBy(desc(appointments.scheduledDate))
+        .then(results => results.map(result => result.appointments));
+    }
+    
+    return await query
+      .orderBy(desc(appointments.scheduledDate))
+      .then(results => results.map(result => result.appointments));
+  }
+
   async getAppointment(id: string): Promise<Appointment | undefined> {
     const [appointment] = await db.select().from(appointments).where(eq(appointments.id, id));
     return appointment;
@@ -278,6 +305,13 @@ export class DatabaseStorage implements IStorage {
   async getRepairOrdersByTechnician(technicianId: string): Promise<RepairOrder[]> {
     return await db.select().from(repairOrders)
       .where(eq(repairOrders.technicianId, technicianId))
+      .orderBy(desc(repairOrders.createdAt));
+  }
+
+  // Get repair orders filtered by customer (for client users)
+  async getRepairOrdersByCustomer(customerId: string): Promise<RepairOrder[]> {
+    return await db.select().from(repairOrders)
+      .where(eq(repairOrders.customerId, customerId))
       .orderBy(desc(repairOrders.createdAt));
   }
 
@@ -341,6 +375,15 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(inspections)
       .where(eq(inspections.customerId, customerId))
       .orderBy(desc(inspections.createdAt));
+  }
+
+  // Get inspections filtered by technician assignment (for technician users)
+  async getInspectionsByTechnician(technicianId: string): Promise<Inspection[]> {
+    return await db.select().from(inspections)
+      .innerJoin(repairOrders, eq(inspections.repairOrderId, repairOrders.id))
+      .where(eq(repairOrders.technicianId, technicianId))
+      .orderBy(desc(inspections.createdAt))
+      .then(results => results.map(result => result.inspections));
   }
 
   async getInspection(id: string): Promise<Inspection | undefined> {

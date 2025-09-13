@@ -130,6 +130,7 @@ export const inspections = pgTable("inspections", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   customerId: uuid("customer_id").references(() => customers.id).notNull(),
   vehicleId: uuid("vehicle_id").references(() => vehicles.id).notNull(),
+  repairOrderId: uuid("repair_order_id").references(() => repairOrders.id), // nullable - links inspection to specific repair order
   vehicleInfo: text("vehicle_info").notNull(), // e.g., "2020 Honda Civic - ABC123"
   customerName: varchar("customer_name", { length: 200 }).notNull(),
   serviceType: varchar("service_type", { length: 100 }).notNull(),
