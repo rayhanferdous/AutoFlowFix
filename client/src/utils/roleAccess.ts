@@ -7,72 +7,116 @@ export interface MenuItem {
   icon: string;
   section: string;
   roles: UserRole[];
+  description?: string;
+  priority?: number;
+  roleSpecificTitle?: Partial<Record<UserRole, string>>;
+  roleSpecificIcon?: Partial<Record<UserRole, string>>;
 }
 
-// Define which roles can access which features
+// Define which roles can access which features with role-specific customization
 export const menuItems: MenuItem[] = [
   {
     title: "Dashboard",
+    roleSpecificTitle: {
+      admin: "Management Dashboard",
+      user: "Technician Dashboard", 
+      client: "My Dashboard"
+    },
     path: "/",
     icon: "fas fa-tachometer-alt",
     section: "main",
-    roles: ["admin", "user", "client"]
+    roles: ["admin", "user", "client"],
+    description: "Overview and key metrics",
+    priority: 1
   },
   {
     title: "Digital Inspections", 
+    roleSpecificTitle: {
+      admin: "All Inspections",
+      user: "My Inspections"
+    },
     path: "/inspections",
     icon: "fas fa-clipboard-check",
     section: "operations",
-    roles: ["admin", "user"] // Shop Manager and Technician only
+    roles: ["admin", "user"], // Shop Manager and Technician only
+    description: "Vehicle inspection reports",
+    priority: 2
   },
   {
     title: "Appointments",
+    roleSpecificTitle: {
+      admin: "All Appointments",
+      user: "My Assignments", 
+      client: "My Appointments"
+    },
     path: "/appointments", 
     icon: "fas fa-calendar-alt",
     section: "operations",
-    roles: ["admin", "user", "client"] // All roles - clients see their own
+    roles: ["admin", "user", "client"], // All roles - clients see their own
+    description: "Schedule and manage appointments",
+    priority: 3
   },
   {
     title: "Repair Orders",
+    roleSpecificTitle: {
+      admin: "All Work Orders",
+      user: "My Work Orders"
+    },
     path: "/repair-orders",
     icon: "fas fa-wrench", 
     section: "operations",
-    roles: ["admin", "user"] // Shop Manager and Technician (assigned orders only)
+    roles: ["admin", "user"], // Shop Manager and Technician (assigned orders only)
+    description: "Track repair progress",
+    priority: 4
   },
   {
     title: "Job Board",
+    roleSpecificTitle: {
+      admin: "Work Assignment Board",
+      user: "Available Jobs"
+    },
     path: "/job-board",
     icon: "fas fa-tasks",
     section: "operations",
-    roles: ["admin", "user"] // Shop Manager and Technician only
+    roles: ["admin", "user"], // Shop Manager and Technician only
+    description: "View and assign work",
+    priority: 5
   },
   {
     title: "Customer Management",
     path: "/customers",
     icon: "fas fa-users",
     section: "customer",
-    roles: ["admin"] // Shop Manager only
+    roles: ["admin"], // Shop Manager only
+    description: "Manage customer database",
+    priority: 6
   },
   {
     title: "Two-Way Texting",
     path: "/messaging",
     icon: "fas fa-sms",
     section: "customer",
-    roles: ["admin"] // Shop Manager only
+    roles: ["admin"], // Shop Manager only
+    description: "Communicate with customers",
+    priority: 7
   },
   {
     title: "Reviews Campaign",
     path: "/reviews",
     icon: "fas fa-star",
     section: "customer",
-    roles: ["admin"] // Shop Manager only
+    roles: ["admin"], // Shop Manager only
+    description: "Manage customer reviews",
+    priority: 8
   },
   {
-    title: "Customer Portal",
+    title: "My Account",
     path: "/customer-portal",
     icon: "fas fa-user-circle",
     section: "personal",
-    roles: ["client"] // Client only - their personal portal
+    roles: ["client"], // Client only - their personal portal
+    description: "View your vehicles and services",
+    priority: 1
   },
   {
     title: "Invoices & Payments",
@@ -126,9 +170,16 @@ export const roleDisplayNames: Record<UserRole, string> = {
   client: "Client"
 };
 
-// Helper function to filter menu items by user role
+// Helper function to filter menu items by user role with customization
 export function getMenuItemsForRole(userRole: UserRole): MenuItem[] {
-  return menuItems.filter(item => item.roles.includes(userRole));
+  return menuItems
+    .filter(item => item.roles.includes(userRole))
+    .map(item => ({
+      ...item,
+      title: item.roleSpecificTitle?.[userRole] || item.title,
+      icon: item.roleSpecificIcon?.[userRole] || item.icon
+    }))
+    .sort((a, b) => (a.priority || 999) - (b.priority || 999));
 }
 
 // Helper function to check if user has access to a specific path
