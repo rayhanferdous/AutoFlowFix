@@ -61,12 +61,12 @@ export const filterDataByRole: RequestHandler = (req: any, res, next) => {
 // Helper to get customer ID for client users
 export const getCustomerIdForUser = async (userId: string, storage: any): Promise<string | null> => {
   try {
-    // In a real implementation, you'd have a mapping between users and customers
-    // For now, we'll use the user ID as customer ID for client users
     const user = await storage.getUser(userId);
     if (user?.role === 'client') {
-      // Assuming client users have a direct customer relationship
-      return userId; // or implement proper customer lookup
+      // Look up customer record by user_id to get proper customer ID
+      const customers = await storage.getCustomers();
+      const customer = customers.find((c: any) => c.userId === userId);
+      return customer?.id || null;
     }
     return null;
   } catch (error) {
