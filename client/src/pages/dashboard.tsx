@@ -22,8 +22,30 @@ export default function Dashboard() {
     enabled: !!user && user.role === 'admin',
   });
 
-  const { data: repairOrders } = useQuery({
+  const { data: repairOrders, isError: repairOrdersError } = useQuery({
     queryKey: ["/api/repair-orders"],
+    enabled: !!user && (user.role === 'admin' || user.role === 'user'),
+  });
+
+  // Add role-specific data fetching
+  const { data: appointments, isError: appointmentsError } = useQuery({
+    queryKey: ["/api/appointments"],
+    enabled: !!user && (user.role === 'admin' || user.role === 'client'),
+  });
+
+  const { data: inspections, isError: inspectionsError } = useQuery({
+    queryKey: ["/api/inspections"],
+    enabled: !!user && (user.role === 'admin' || user.role === 'user'),
+  });
+
+  const { data: customerVehicles } = useQuery({
+    queryKey: ["/api/vehicles"],
+    enabled: !!user && user.role === 'client',
+  });
+
+  const { data: customerInvoices } = useQuery({
+    queryKey: ["/api/invoices"],
+    enabled: !!user && user.role === 'client',
   });
 
   const activeRepairOrders = Array.isArray(repairOrders) ? repairOrders.filter((order: any) => 
@@ -251,7 +273,9 @@ export default function Dashboard() {
                   <CardContent>
                     <div className="text-center">
                       <div className="text-3xl font-bold text-blue-600" data-testid="metric-inspections">
-                        2
+                        {Array.isArray(inspections) ? inspections.filter((inspection: any) => 
+                          ["pending", "in_progress"].includes(inspection.status)
+                        ).length : 0}
                       </div>
                       <div className="text-sm text-muted-foreground">Pending</div>
                     </div>
@@ -283,39 +307,53 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
-                    <CardTitle>My Vehicle Status</CardTitle>
+                    <CardTitle>My Vehicles</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <i className="fas fa-car text-blue-600"></i>
+                      {Array.isArray(customerVehicles) && customerVehicles.length > 0 ? (
+                        customerVehicles.slice(0, 2).map((vehicle: any) => (
+                          <div key={vehicle.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i className="fas fa-car text-blue-600"></i>
+                              </div>
+                              <div>
+                                <p className="font-medium">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                                <p className="text-sm text-muted-foreground">License: {vehicle.licensePlate}</p>
+                              </div>
+                            </div>
+                            <Badge className="bg-green-100 text-green-800 border-green-200">
+                              Active
+                            </Badge>
                           </div>
-                          <div>
-                            <p className="font-medium">Vehicle Health</p>
-                            <p className="text-sm text-muted-foreground">Last checked: 2 weeks ago</p>
-                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <i className="fas fa-car text-4xl mb-4 opacity-50"></i>
+                          <p>No vehicles registered</p>
+                          <p className="text-sm">Contact us to add your vehicle</p>
                         </div>
-                        <Badge className="bg-green-100 text-green-800 border-green-200">
-                          Good
-                        </Badge>
-                      </div>
+                      )}
 
-                      <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <i className="fas fa-calendar text-orange-600"></i>
+                      {Array.isArray(appointments) && appointments.length > 0 && (
+                        <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-orange-50">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                              <i className="fas fa-calendar text-orange-600"></i>
+                            </div>
+                            <div>
+                              <p className="font-medium">Next Service</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(appointments[0].scheduledDate).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium">Next Service</p>
-                            <p className="text-sm text-muted-foreground">Due in 2 weeks</p>
-                          </div>
+                          <Badge className="bg-orange-100 text-orange-800 border-orange-200">
+                            {appointments[0].status}
+                          </Badge>
                         </div>
-                        <Badge className="bg-orange-100 text-orange-800 border-orange-200">
-                          Scheduled
-                        </Badge>
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -497,35 +535,64 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <i className="fas fa-oil-can text-green-600"></i>
+                  {Array.isArray(appointments) && appointments.length > 0 ? (
+                    appointments.filter((appt: any) => appt.status === 'completed').slice(0, 3).map((appointment: any) => (
+                      <div key={appointment.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i className="fas fa-calendar-check text-blue-600"></i>
+                          </div>
+                          <div>
+                            <p className="font-medium">{appointment.serviceType || 'Service Appointment'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {appointment.scheduledDate ? new Date(appointment.scheduledDate).toLocaleDateString() : 'Recent'}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge className="bg-green-100 text-green-800 border-green-200">
+                          Completed
+                        </Badge>
                       </div>
-                      <div>
-                        <p className="font-medium">Oil Change Service</p>
-                        <p className="text-sm text-muted-foreground">March 15, 2024</p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <i className="fas fa-history text-4xl mb-4 opacity-50"></i>
+                      <p>No service history available</p>
+                      <p className="text-sm">Your completed services will appear here</p>
                     </div>
-                    <Badge className="bg-green-100 text-green-800 border-green-200">
-                      Completed
-                    </Badge>
-                  </div>
+                  )}
 
-                  <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <i className="fas fa-clipboard-check text-blue-600"></i>
-                      </div>
-                      <div>
-                        <p className="font-medium">Annual Inspection</p>
-                        <p className="text-sm text-muted-foreground">January 22, 2024</p>
+                  {Array.isArray(customerInvoices) && customerInvoices.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3">Recent Invoices</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {customerInvoices.slice(0, 2).map((invoice: any) => (
+                          <div key={invoice.id} className="p-3 bg-accent rounded-lg">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-sm">{invoice.invoiceNumber}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : 'Recent'}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-bold text-sm">${invoice.total}</p>
+                                <Badge 
+                                  className={`text-xs ${
+                                    invoice.status === 'paid' 
+                                      ? 'bg-green-100 text-green-800 border-green-200'
+                                      : 'bg-orange-100 text-orange-800 border-orange-200'
+                                  }`}
+                                >
+                                  {invoice.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <Badge className="bg-green-100 text-green-800 border-green-200">
-                      Passed
-                    </Badge>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
