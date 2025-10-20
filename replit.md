@@ -82,3 +82,26 @@ The system is architected to support future integrations with:
 - SMS/Email marketing platforms
 - Third-party automotive data providers
 - Mobile applications for technicians and customers
+
+## Deployment Options
+
+### Docker Deployment
+The application is fully containerized and can be deployed using Docker:
+- **Docker Compose**: Multi-container orchestration with PostgreSQL database
+- **Production Ready**: Optimized multi-stage builds with health checks
+- **Easy Scaling**: Can be deployed on any Docker-compatible platform
+- **Portability**: Consistent environment across development and production
+
+See `README.Docker.md` for complete Docker deployment instructions.
+
+### Self-Hosting Options
+- **CyberPanel**: OpenLiteSpeed with Node.js and PostgreSQL support
+- **Traditional VPS**: Any Linux server with Node.js 20+ and PostgreSQL
+- **Cloud Platforms**: AWS, DigitalOcean, Linode, Vultr, etc.
+- **Container Platforms**: Docker Swarm, Kubernetes, Portainer
+
+### Recent Updates
+- **2025-01-20**: Added comprehensive Docker support with multi-stage builds
+- **2025-01-20**: Completed three-tier role-based access control (RBAC) implementation
+- **2025-01-20**: Enhanced dashboard with dynamic role-specific content
+- **2025-01-20**: Implemented secure technician assignment-based filtering
