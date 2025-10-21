@@ -32,6 +32,10 @@ COPY --from=builder /app/client/dist ./client/dist
 COPY server ./server
 COPY shared ./shared
 COPY drizzle.config.ts ./
+COPY docker-entrypoint.sh ./
+
+# Make entrypoint script executable
+RUN chmod +x docker-entrypoint.sh
 
 # Expose port
 EXPOSE 5000
@@ -39,5 +43,5 @@ EXPOSE 5000
 # Set environment
 ENV NODE_ENV=production
 
-# Start the application
-CMD ["npm", "start"]
+# Start the application with migrations
+ENTRYPOINT ["./docker-entrypoint.sh"]

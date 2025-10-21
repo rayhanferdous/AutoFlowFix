@@ -1,10 +1,19 @@
+// Load .env in development
+if (process.env.NODE_ENV !== 'production') {
+  await import('dotenv').then(dotenv => dotenv.config());
+}
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import healthRouter from './routes/health';
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Mount health check route (needed by Coolify)
+app.use('/api', healthRouter);
 
 
 
