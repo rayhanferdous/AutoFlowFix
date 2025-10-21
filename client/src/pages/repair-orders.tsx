@@ -274,7 +274,7 @@ export default function RepairOrders() {
                   Create Repair Order
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[700px]">
+              <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Repair Order</DialogTitle>
                   <DialogDescription>
@@ -475,7 +475,7 @@ export default function RepairOrders() {
 
         {/* View Repair Order Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>View Repair Order</DialogTitle>
               <DialogDescription>
@@ -560,7 +560,7 @@ export default function RepairOrders() {
 
         {/* Edit Repair Order Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-[700px]">
+          <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Repair Order</DialogTitle>
               <DialogDescription>

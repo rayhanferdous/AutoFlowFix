@@ -3,337 +3,421 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Loader2, User, Mail, Lock, UserPlus, LogIn, Eye, EyeOff } from "lucide-react";
 
 export default function Landing() {
-  const [showAuth, setShowAuth] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [registerForm, setRegisterForm] = useState({ 
-    username: "", 
-    email: "", 
-    password: "", 
-    firstName: "", 
-    lastName: "" 
+  const [isSignIn, setIsSignIn] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { toast } = useToast();
+  
+  const [signInData, setSignInData] = useState({
+    username: "",
+    password: "",
   });
   
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  const loginMutation = useMutation({
-    mutationFn: async (data: { username: string; password: string }) => {
-      return apiRequest("POST", "/api/login", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({ title: "Success", description: "Logged in successfully!" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Login Failed", 
-        description: error.message || "Invalid username or password",
-        variant: "destructive" 
-      });
-    },
+  const [signUpData, setSignUpData] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    firstName: "",
+    lastName: "",
   });
 
-  const registerMutation = useMutation({
-    mutationFn: async (data: { username: string; email: string; password: string; firstName: string; lastName: string }) => {
-      return apiRequest("POST", "/api/register", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      toast({ title: "Success", description: "Account created and logged in!" });
-    },
-    onError: (error: any) => {
-      toast({ 
-        title: "Registration Failed", 
-        description: error.message || "Failed to create account",
-        variant: "destructive" 
-      });
-    },
-  });
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate(loginForm);
+    setIsLoading(true);
+    
+    try {
+      await apiRequest("POST", "/api/login", signInData);
+      window.location.href = "/";
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Invalid username or password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    registerMutation.mutate(registerForm);
+    
+    if (signUpData.password !== signUpData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      await apiRequest("POST", "/api/register", {
+        username: signUpData.username,
+        email: signUpData.email,
+        password: signUpData.password,
+        firstName: signUpData.firstName,
+        lastName: signUpData.lastName,
+      });
+      
+      window.location.href = "/";
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Registration failed",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent to-muted">
-      <div className="container mx-auto px-4 py-16">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-950 dark:via-blue-950 dark:to-indigo-950 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/20 dark:bg-blue-600/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-600/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute -bottom-40 right-1/4 w-80 h-80 bg-purple-400/20 dark:bg-purple-600/10 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Header */}
-        <div className="text-center mb-16">
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
-              <i className="fas fa-car text-primary-foreground text-2xl"></i>
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 dark:from-blue-500 dark:to-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 transform hover:scale-110 transition-transform duration-300">
+              <i className="fas fa-car text-white text-2xl"></i>
             </div>
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">AutoFlow GMS</h1>
-              <p className="text-xl text-muted-foreground">Garage Management System</p>
+            <div className="text-left">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
+                AutoFlow GMS
+              </h1>
+              <p className="text-lg text-slate-600 dark:text-slate-400">Garage Management System</p>
             </div>
           </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Professional garage management with reliable data persistence, customer portal access, 
-            and comprehensive audit trails. Now powered by robust PostgreSQL infrastructure.
-          </p>
         </div>
 
-        {/* Migration Success Alert */}
-        <div className="max-w-4xl mx-auto mb-12">
-          <Card className="border-green-200 bg-green-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <i className="fas fa-check-circle text-green-600 text-xl"></i>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-green-800">Migration Successful</h3>
-                  <p className="text-green-700">
-                    All data has been successfully migrated from Base44 platform to reliable Replit infrastructure. 
-                    Zero data loss guaranteed with comprehensive backup and recovery systems.
-                  </p>
+        {/* Authentication Form - Modern Centered Design */}
+        <div className="max-w-md mx-auto mb-12">
+          <Card className="border-0 shadow-2xl shadow-slate-200/50 dark:shadow-slate-900/50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
+            <CardHeader className="space-y-1 pb-8 pt-8">
+              <div className="flex items-center justify-center mb-6">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-500 ${
+                  isSignIn 
+                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30' 
+                    : 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg shadow-purple-500/30'
+                }`}>
+                  {isSignIn ? (
+                    <LogIn className="h-8 w-8 text-white" />
+                  ) : (
+                    <UserPlus className="h-8 w-8 text-white" />
+                  )}
                 </div>
               </div>
+              <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                {isSignIn ? "Welcome Back" : "Create Account"}
+              </CardTitle>
+              <CardDescription className="text-center text-base">
+                {isSignIn 
+                  ? "Sign in to access your dashboard"
+                  : "Join us to manage your garage"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-8">
+              {isSignIn ? (
+                <form onSubmit={handleSignIn} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-username" className="text-slate-700 dark:text-slate-300 font-medium">
+                      Username
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input
+                        id="signin-username"
+                        type="text"
+                        placeholder="Enter your username"
+                        value={signInData.username}
+                        onChange={(e) => setSignInData({ ...signInData, username: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-username"
+                        className="pl-11 h-12 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signin-password" className="text-slate-700 dark:text-slate-300 font-medium">
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input
+                        id="signin-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={signInData.password}
+                        onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-password"
+                        className="pl-11 pr-11 h-12 border-slate-200 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg shadow-blue-500/30 transition-all duration-300 transform hover:scale-[1.02]"
+                    disabled={isLoading}
+                    data-testid="button-signin"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Signing In...
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="mr-2 h-5 w-5" />
+                        Sign In
+                      </>
+                    )}
+                  </Button>
+                  <div className="text-center mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setIsSignIn(false)}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors"
+                      data-testid="link-signup"
+                    >
+                      Don't have an account? <span className="underline">Sign up</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleSignUp} className="space-y-5">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-firstName" className="text-slate-700 dark:text-slate-300 font-medium">
+                        First Name
+                      </Label>
+                      <Input
+                        id="signup-firstName"
+                        type="text"
+                        placeholder="First name"
+                        value={signUpData.firstName}
+                        onChange={(e) => setSignUpData({ ...signUpData, firstName: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-firstname"
+                        className="h-12 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-lastName" className="text-slate-700 dark:text-slate-300 font-medium">
+                        Last Name
+                      </Label>
+                      <Input
+                        id="signup-lastName"
+                        type="text"
+                        placeholder="Last name"
+                        value={signUpData.lastName}
+                        onChange={(e) => setSignUpData({ ...signUpData, lastName: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-lastname"
+                        className="h-12 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-username" className="text-slate-700 dark:text-slate-300 font-medium">
+                      Username
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input
+                        id="signup-username"
+                        type="text"
+                        placeholder="Choose a username"
+                        value={signUpData.username}
+                        onChange={(e) => setSignUpData({ ...signUpData, username: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-signup-username"
+                        className="pl-11 h-12 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-email" className="text-slate-700 dark:text-slate-300 font-medium">
+                      Email
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={signUpData.email}
+                        onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-email"
+                        className="pl-11 h-12 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-password" className="text-slate-700 dark:text-slate-300 font-medium">
+                      Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input
+                        id="signup-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a password"
+                        value={signUpData.password}
+                        onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-signup-password"
+                        className="pl-11 pr-11 h-12 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-confirmPassword" className="text-slate-700 dark:text-slate-300 font-medium">
+                      Confirm Password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input
+                        id="signup-confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={signUpData.confirmPassword}
+                        onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
+                        required
+                        disabled={isLoading}
+                        data-testid="input-confirm-password"
+                        className="pl-11 pr-11 h-12 border-slate-200 dark:border-slate-700 focus:border-purple-500 dark:focus:border-purple-500 bg-white dark:bg-slate-800 transition-all duration-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold shadow-lg shadow-purple-500/30 transition-all duration-300 transform hover:scale-[1.02]"
+                    disabled={isLoading}
+                    data-testid="button-signup"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="mr-2 h-5 w-5" />
+                        Create Account
+                      </>
+                    )}
+                  </Button>
+                  <div className="text-center mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setIsSignIn(true)}
+                      className="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-medium transition-colors"
+                      data-testid="link-signin"
+                    >
+                      Already have an account? <span className="underline">Sign in</span>
+                    </button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <i className="fas fa-shield-alt text-blue-600 text-xl"></i>
-              </div>
-              <CardTitle>Data Integrity</CardTitle>
-              <CardDescription>
-                100% data integrity with PostgreSQL database, comprehensive validation, and real-time error detection.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                <i className="fas fa-users text-green-600 text-xl"></i>
-              </div>
-              <CardTitle>Customer Portal</CardTitle>
-              <CardDescription>
-                Secure customer registration, authentication, and access to complete service history.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                <i className="fas fa-clipboard-check text-purple-600 text-xl"></i>
-              </div>
-              <CardTitle>Digital Inspections</CardTitle>
-              <CardDescription>
-                Comprehensive digital vehicle inspections with photo documentation and detailed reports.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                <i className="fas fa-calendar-alt text-orange-600 text-xl"></i>
-              </div>
-              <CardTitle>Appointment Management</CardTitle>
-              <CardDescription>
-                Streamlined appointment scheduling with automated reminders and customer notifications.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
-                <i className="fas fa-wrench text-red-600 text-xl"></i>
-              </div>
-              <CardTitle>Repair Orders</CardTitle>
-              <CardDescription>
-                Complete repair order management with real-time status tracking and technician assignments.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                <i className="fas fa-chart-line text-indigo-600 text-xl"></i>
-              </div>
-              <CardTitle>Business Analytics</CardTitle>
-              <CardDescription>
-                Comprehensive reporting and analytics with audit trails for all business operations.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-
-        {/* Authentication */}
-        <div className="text-center">
-          {!showAuth ? (
-            <Card className="max-w-md mx-auto">
+        {/* Features Section - Compact Modern Cards */}
+        <div className="max-w-6xl mx-auto mb-12">
+          <h2 className="text-2xl font-bold text-center mb-8 bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+            Why Choose AutoFlow GMS?
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="border-0 shadow-lg bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader>
-                <CardTitle>Ready to Get Started?</CardTitle>
-                <CardDescription>
-                  Access your secure garage management dashboard with reliable data persistence.
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 rounded-xl flex items-center justify-center mb-4 shadow-md shadow-blue-500/30">
+                  <i className="fas fa-shield-alt text-white text-xl"></i>
+                </div>
+                <CardTitle className="text-lg">Data Integrity</CardTitle>
+                <CardDescription className="text-sm">
+                  PostgreSQL database with comprehensive validation and real-time error detection.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={() => setShowAuth(true)} 
-                  className="w-full"
-                  data-testid="button-show-auth"
-                >
-                  <i className="fas fa-sign-in-alt mr-2"></i>
-                  Sign In to Dashboard
-                </Button>
-              </CardContent>
             </Card>
-          ) : (
-            <Card className="max-w-md mx-auto">
+
+            <Card className="border-0 shadow-lg bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <CardHeader>
-                <CardTitle>Account Access</CardTitle>
-                <CardDescription>
-                  Sign in to your account or create a new one to get started.
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-600 dark:to-green-700 rounded-xl flex items-center justify-center mb-4 shadow-md shadow-green-500/30">
+                  <i className="fas fa-users text-white text-xl"></i>
+                </div>
+                <CardTitle className="text-lg">Customer Portal</CardTitle>
+                <CardDescription className="text-sm">
+                  Secure authentication and access to complete service history.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="login" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="login">Sign In</TabsTrigger>
-                    <TabsTrigger value="register">Register</TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="login" className="space-y-4">
-                    <form onSubmit={handleLogin} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="login-username">Username</Label>
-                        <Input
-                          id="login-username"
-                          type="text"
-                          value={loginForm.username}
-                          onChange={(e) => setLoginForm(prev => ({ ...prev, username: e.target.value }))}
-                          required
-                          data-testid="input-login-username"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="login-password">Password</Label>
-                        <Input
-                          id="login-password"
-                          type="password"
-                          value={loginForm.password}
-                          onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                          required
-                          data-testid="input-login-password"
-                        />
-                      </div>
-                      <Button 
-                        type="submit" 
-                        className="w-full"
-                        disabled={loginMutation.isPending}
-                        data-testid="button-login"
-                      >
-                        {loginMutation.isPending ? "Signing In..." : "Sign In"}
-                      </Button>
-                    </form>
-                  </TabsContent>
-                  
-                  <TabsContent value="register" className="space-y-4">
-                    <form onSubmit={handleRegister} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="register-firstName">First Name</Label>
-                          <Input
-                            id="register-firstName"
-                            type="text"
-                            value={registerForm.firstName}
-                            onChange={(e) => setRegisterForm(prev => ({ ...prev, firstName: e.target.value }))}
-                            data-testid="input-register-firstName"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="register-lastName">Last Name</Label>
-                          <Input
-                            id="register-lastName"
-                            type="text"
-                            value={registerForm.lastName}
-                            onChange={(e) => setRegisterForm(prev => ({ ...prev, lastName: e.target.value }))}
-                            data-testid="input-register-lastName"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="register-username">Username</Label>
-                        <Input
-                          id="register-username"
-                          type="text"
-                          value={registerForm.username}
-                          onChange={(e) => setRegisterForm(prev => ({ ...prev, username: e.target.value }))}
-                          required
-                          data-testid="input-register-username"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="register-email">Email</Label>
-                        <Input
-                          id="register-email"
-                          type="email"
-                          value={registerForm.email}
-                          onChange={(e) => setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
-                          required
-                          data-testid="input-register-email"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="register-password">Password</Label>
-                        <Input
-                          id="register-password"
-                          type="password"
-                          value={registerForm.password}
-                          onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
-                          required
-                          data-testid="input-register-password"
-                        />
-                      </div>
-                      <Button 
-                        type="submit" 
-                        className="w-full"
-                        disabled={registerMutation.isPending}
-                        data-testid="button-register"
-                      >
-                        {registerMutation.isPending ? "Creating Account..." : "Create Account"}
-                      </Button>
-                    </form>
-                  </TabsContent>
-                </Tabs>
-                
-                <Button 
-                  variant="ghost" 
-                  onClick={() => setShowAuth(false)}
-                  className="w-full mt-4"
-                  data-testid="button-back"
-                >
-                  <i className="fas fa-arrow-left mr-2"></i>
-                  Back
-                </Button>
-              </CardContent>
             </Card>
-          )}
+
+            <Card className="border-0 shadow-lg bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <CardHeader>
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700 rounded-xl flex items-center justify-center mb-4 shadow-md shadow-purple-500/30">
+                  <i className="fas fa-chart-line text-white text-xl"></i>
+                </div>
+                <CardTitle className="text-lg">Analytics</CardTitle>
+                <CardDescription className="text-sm">
+                  Comprehensive reporting with audit trails for all operations.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
         </div>
+
+        {/* Footer */}
+        <footer className="text-center text-slate-600 dark:text-slate-400 text-sm">
+          <p>&copy; 2025 AutoFlow GMS. All rights reserved.</p>
+          <p className="mt-1">Powered by Replit Infrastructure</p>
+        </footer>
       </div>
     </div>
   );

@@ -1,60 +1,76 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import Sidebar from "@/components/sidebar";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { DollarSign, Users, Wrench, Package, TrendingUp, Calendar, AlertCircle } from "lucide-react";
+
+interface RevenueAnalytics {
+  totalRevenue: number;
+  paidInvoices: number;
+  averageInvoiceAmount: number;
+  revenueByMonth: Array<{ month: string; revenue: number }>;
+}
+
+interface CustomerAnalytics {
+  totalCustomers: number;
+  newCustomersThisMonth: number;
+  totalVehicles: number;
+  activeCustomers: number;
+  customersByMonth: Array<{ month: string; count: number }>;
+}
+
+interface TechnicianAnalytics {
+  technicianId: string;
+  technicianName: string;
+  completedJobs: number;
+  activeJobs: number;
+  totalRevenue: number;
+  averageCompletionTime: number;
+}
+
+interface InventoryAnalytics {
+  totalItems: number;
+  totalValue: number;
+  lowStockItems: number;
+  categoriesCount: number;
+  valueByCategory: Array<{ category: string; value: number }>;
+}
 
 export default function Reporting() {
-  const reports = [
-    {
-      id: "RPT-001",
-      name: "Monthly Revenue Report",
-      description: "Revenue breakdown by service type and time period",
-      category: "Financial",
-      lastRun: "2024-01-15",
-      format: "PDF"
-    },
-    {
-      id: "RPT-002",
-      name: "Customer Activity Report", 
-      description: "Customer visit frequency and service history",
-      category: "Customer",
-      lastRun: "2024-01-14",
-      format: "Excel"
-    },
-    {
-      id: "RPT-003",
-      name: "Technician Performance",
-      description: "Productivity and efficiency metrics by technician",
-      category: "Operations",
-      lastRun: "2024-01-13",
-      format: "PDF"
-    },
-    {
-      id: "RPT-004",
-      name: "Inventory Usage Report",
-      description: "Parts consumption and reorder recommendations",
-      category: "Inventory",
-      lastRun: "2024-01-12",
-      format: "Excel"
-    }
-  ];
+  const { data: revenueData, isLoading: revenueLoading, isError: revenueError } = useQuery<RevenueAnalytics>({
+    queryKey: ['/api/analytics/revenue'],
+  });
 
-  const quickStats = [
-    { title: "Total Reports", value: "12", icon: "fas fa-file-alt", color: "blue" },
-    { title: "This Month", value: "8", icon: "fas fa-calendar", color: "green" },
-    { title: "Scheduled", value: "5", icon: "fas fa-clock", color: "yellow" },
-    { title: "Automated", value: "3", icon: "fas fa-robot", color: "purple" }
-  ];
+  const { data: customerData, isLoading: customerLoading, isError: customerError } = useQuery<CustomerAnalytics>({
+    queryKey: ['/api/analytics/customers'],
+  });
 
-  const getColorClasses = (color: string) => {
-    const colorMap = {
-      blue: "bg-blue-100 text-blue-600",
-      green: "bg-green-100 text-green-600", 
-      yellow: "bg-yellow-100 text-yellow-600",
-      purple: "bg-purple-100 text-purple-600"
-    };
-    return colorMap[color as keyof typeof colorMap] || "bg-gray-100 text-gray-600";
+  const { data: technicianData, isLoading: technicianLoading, isError: technicianError } = useQuery<TechnicianAnalytics[]>({
+    queryKey: ['/api/analytics/technicians'],
+  });
+
+  const { data: inventoryData, isLoading: inventoryLoading, isError: inventoryError } = useQuery<InventoryAnalytics>({
+    queryKey: ['/api/analytics/inventory'],
+  });
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(value);
   };
+
+  const formatMonth = (monthStr: string) => {
+    const [year, month] = monthStr.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { 
+      month: 'short', 
+      year: 'numeric' 
+    });
+  };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
   return (
     <div className="flex h-screen bg-background">
@@ -63,165 +79,426 @@ export default function Reporting() {
         <div className="p-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-foreground" data-testid="title-reporting">Reporting</h1>
-              <p className="text-muted-foreground">Generate business reports and analytics</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" data-testid="button-schedule-report">
-                <i className="fas fa-clock mr-2"></i>
-                Schedule Report
-              </Button>
-              <Button data-testid="button-new-report">
-                <i className="fas fa-plus mr-2"></i>
-                Create Report
-              </Button>
+              <h1 className="text-3xl font-bold text-foreground" data-testid="title-reporting">Analytics & Reporting</h1>
+              <p className="text-muted-foreground">Business insights and performance metrics</p>
             </div>
           </div>
 
+          {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            {quickStats.map((stat, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
+            <Card>
+              <CardContent className="p-6">
+                {revenueLoading ? (
                   <div className="flex items-center">
-                    <div className={`w-12 h-12 ${getColorClasses(stat.color)} rounded-lg flex items-center justify-center mr-4`}>
-                      <i className={`${stat.icon} text-xl`}></i>
+                    <Skeleton className="w-12 h-12 rounded-lg mr-4" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-20" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 rounded-lg flex items-center justify-center mr-4">
+                      <DollarSign className="w-6 h-6" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold">{stat.value}</p>
-                      <p className="text-sm text-muted-foreground">{stat.title}</p>
+                      <p className="text-2xl font-bold" data-testid="stat-total-revenue">
+                        {formatCurrency(revenueData?.totalRevenue || 0)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Total Revenue</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* Quick Report Generator */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Report Generator</CardTitle>
-                <CardDescription>Generate reports instantly</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Report Type</label>
-                    <Select>
-                      <SelectTrigger data-testid="select-report-type">
-                        <SelectValue placeholder="Select report type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="revenue">Revenue Report</SelectItem>
-                        <SelectItem value="customer">Customer Report</SelectItem>
-                        <SelectItem value="inventory">Inventory Report</SelectItem>
-                        <SelectItem value="performance">Performance Report</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Date Range</label>
-                    <Select>
-                      <SelectTrigger data-testid="select-date-range">
-                        <SelectValue placeholder="Select date range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7d">Last 7 days</SelectItem>
-                        <SelectItem value="30d">Last 30 days</SelectItem>
-                        <SelectItem value="90d">Last 3 months</SelectItem>
-                        <SelectItem value="1y">Last year</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Format</label>
-                    <Select>
-                      <SelectTrigger data-testid="select-format">
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pdf">PDF</SelectItem>
-                        <SelectItem value="excel">Excel</SelectItem>
-                        <SelectItem value="csv">CSV</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button className="w-full" data-testid="button-generate-report">
-                    <i className="fas fa-file-download mr-2"></i>
-                    Generate Report
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Recent Reports */}
+            <Card>
+              <CardContent className="p-6">
+                {customerLoading ? (
+                  <div className="flex items-center">
+                    <Skeleton className="w-12 h-12 rounded-lg mr-4" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-20" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-lg flex items-center justify-center mr-4">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-total-customers">
+                        {customerData?.totalCustomers || 0}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Total Customers</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                {technicianLoading ? (
+                  <div className="flex items-center">
+                    <Skeleton className="w-12 h-12 rounded-lg mr-4" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-20" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-300 rounded-lg flex items-center justify-center mr-4">
+                      <Wrench className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-total-jobs">
+                        {technicianData?.reduce((sum, tech) => sum + tech.completedJobs, 0) || 0}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Completed Jobs</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                {inventoryLoading ? (
+                  <div className="flex items-center">
+                    <Skeleton className="w-12 h-12 rounded-lg mr-4" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-8 w-20" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-300 rounded-lg flex items-center justify-center mr-4">
+                      <Package className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold" data-testid="stat-inventory-value">
+                        {formatCurrency(inventoryData?.totalValue || 0)}
+                      </p>
+                      <p className="text-sm text-muted-foreground">Inventory Value</p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Revenue Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Reports</CardTitle>
-                <CardDescription>Previously generated reports</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Revenue Overview
+                </CardTitle>
+                <CardDescription>Revenue metrics and trends</CardDescription>
               </CardHeader>
               <CardContent>
+                {revenueLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Total Revenue</span>
+                      <span className="font-bold" data-testid="revenue-total">
+                        {formatCurrency(revenueData?.totalRevenue || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Paid Invoices</span>
+                      <span className="font-bold" data-testid="revenue-paid-invoices">
+                        {revenueData?.paidInvoices || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Average Invoice</span>
+                      <span className="font-bold" data-testid="revenue-average">
+                        {formatCurrency(revenueData?.averageInvoiceAmount || 0)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Revenue by Month
+                </CardTitle>
+                <CardDescription>Monthly revenue trends</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {revenueLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : revenueError || !revenueData?.revenueByMonth?.length ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>{revenueError ? "Failed to load revenue data" : "No revenue data available"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={revenueData.revenueByMonth.map(item => ({
+                      month: formatMonth(item.month),
+                      revenue: item.revenue,
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      <Bar dataKey="revenue" fill="#0088FE" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Customer Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Customer Metrics
+                </CardTitle>
+                <CardDescription>Customer growth and activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {customerLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Total Customers</span>
+                      <span className="font-bold" data-testid="customer-total">
+                        {customerData?.totalCustomers || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">New This Month</span>
+                      <span className="font-bold text-green-600 dark:text-green-400" data-testid="customer-new">
+                        +{customerData?.newCustomersThisMonth || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Active Customers</span>
+                      <span className="font-bold" data-testid="customer-active">
+                        {customerData?.activeCustomers || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Total Vehicles</span>
+                      <span className="font-bold" data-testid="customer-vehicles">
+                        {customerData?.totalVehicles || 0}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Customer Growth
+                </CardTitle>
+                <CardDescription>New customers over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {customerLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : customerError || !customerData?.customersByMonth?.length ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>{customerError ? "Failed to load customer data" : "No customer data available"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart data={customerData.customersByMonth.map(item => ({
+                      month: formatMonth(item.month),
+                      count: item.count,
+                    }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="count" stroke="#00C49F" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Technician Performance */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wrench className="w-5 h-5" />
+                Technician Performance
+              </CardTitle>
+              <CardDescription>Individual technician metrics and productivity</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {technicianLoading ? (
                 <div className="space-y-3">
-                  {reports.slice(0, 4).map((report) => (
-                    <div key={report.id} className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">{report.name}</h4>
-                        <p className="text-xs text-muted-foreground">{report.category} • {report.format}</p>
-                        <p className="text-xs text-muted-foreground">Last run: {new Date(report.lastRun).toLocaleDateString()}</p>
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : technicianError || !technicianData || technicianData.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Wrench className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>{technicianError ? "Failed to load technician data" : "No technician data available"}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {technicianData.map((tech) => (
+                    <div key={tech.technicianId} className="p-4 border border-border rounded-lg" data-testid={`tech-${tech.technicianId}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-lg">{tech.technicianName}</h4>
+                        <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                          {formatCurrency(tech.totalRevenue)}
+                        </span>
                       </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" data-testid={`button-download-${report.id}`}>
-                          <i className="fas fa-download text-xs"></i>
-                        </Button>
-                        <Button variant="ghost" size="sm" data-testid={`button-regenerate-${report.id}`}>
-                          <i className="fas fa-redo text-xs"></i>
-                        </Button>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Completed Jobs</p>
+                          <p className="text-lg font-bold">{tech.completedJobs}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Active Jobs</p>
+                          <p className="text-lg font-bold">{tech.activeJobs}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Avg. Time (hrs)</p>
+                          <p className="text-lg font-bold">{tech.averageCompletionTime.toFixed(1)}</p>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Inventory Analytics */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Inventory Overview
+                </CardTitle>
+                <CardDescription>Inventory metrics and status</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {inventoryLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Total Items</span>
+                      <span className="font-bold" data-testid="inventory-total-items">
+                        {inventoryData?.totalItems || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Total Value</span>
+                      <span className="font-bold" data-testid="inventory-total-value">
+                        {formatCurrency(inventoryData?.totalValue || 0)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-secondary rounded-lg">
+                      <span className="text-sm text-muted-foreground">Categories</span>
+                      <span className="font-bold" data-testid="inventory-categories">
+                        {inventoryData?.categoriesCount || 0}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                      <span className="text-sm flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        <span className="text-orange-600 dark:text-orange-400">Low Stock Items</span>
+                      </span>
+                      <span className="font-bold text-orange-600 dark:text-orange-400" data-testid="inventory-low-stock">
+                        {inventoryData?.lowStockItems || 0}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  Value by Category
+                </CardTitle>
+                <CardDescription>Inventory distribution by category</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {inventoryLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : inventoryError || !inventoryData?.valueByCategory?.length ? (
+                  <div className="h-64 flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p>{inventoryError ? "Failed to load inventory data" : "No inventory data available"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={250}>
+                    <PieChart>
+                      <Pie
+                        data={inventoryData.valueByCategory}
+                        dataKey="value"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={(entry) => `${entry.category}: ${formatCurrency(entry.value)}`}
+                      >
+                        {inventoryData.valueByCategory.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </CardContent>
             </Card>
           </div>
-
-          {/* All Reports */}
-          <Card>
-            <CardHeader>
-              <CardTitle>All Reports</CardTitle>
-              <CardDescription>Complete list of available reports</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {reports.map((report) => (
-                  <div key={report.id} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-medium">{report.name}</h4>
-                        <span className="text-xs px-2 py-1 bg-secondary rounded text-secondary-foreground">
-                          {report.category}
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-1">{report.description}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Last run: {new Date(report.lastRun).toLocaleDateString()} • Format: {report.format}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" data-testid={`button-view-${report.id}`}>
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm" data-testid={`button-run-${report.id}`}>
-                        Run Now
-                      </Button>
-                      <Button variant="outline" size="sm" data-testid={`button-schedule-${report.id}`}>
-                        Schedule
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </main>
     </div>

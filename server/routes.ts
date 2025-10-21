@@ -18,6 +18,7 @@ import {
   insertRepairOrderSchema,
   insertInvoiceSchema,
   insertInspectionSchema,
+  insertInventorySchema,
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -76,6 +77,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching dashboard metrics:", error);
       res.status(500).json({ message: "Failed to fetch dashboard metrics" });
+    }
+  });
+
+  // Analytics endpoints - Admin only
+  app.get('/api/analytics/revenue', adminOnly, async (req, res) => {
+    try {
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const analytics = await storage.getRevenueAnalytics(startDate, endDate);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching revenue analytics:", error);
+      res.status(500).json({ message: "Failed to fetch revenue analytics" });
+    }
+  });
+
+  app.get('/api/analytics/customers', adminOnly, async (req, res) => {
+    try {
+      const analytics = await storage.getCustomerAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching customer analytics:", error);
+      res.status(500).json({ message: "Failed to fetch customer analytics" });
+    }
+  });
+
+  app.get('/api/analytics/technicians', adminOnly, async (req, res) => {
+    try {
+      const analytics = await storage.getTechnicianAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching technician analytics:", error);
+      res.status(500).json({ message: "Failed to fetch technician analytics" });
+    }
+  });
+
+  app.get('/api/analytics/inventory', adminOnly, async (req, res) => {
+    try {
+      const analytics = await storage.getInventoryAnalytics();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching inventory analytics:", error);
+      res.status(500).json({ message: "Failed to fetch inventory analytics" });
+    }
+  });
+
+  // Settings endpoints - Admin only
+  app.get('/api/settings/business', adminOnly, async (req, res) => {
+    try {
+      const settings = await storage.getBusinessSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching business settings:", error);
+      res.status(500).json({ message: "Failed to fetch business settings" });
+    }
+  });
+
+  app.put('/api/settings/business', adminOnly, async (req, res) => {
+    try {
+      const { insertBusinessSettingsSchema } = await import('@shared/schema');
+      const updateSchema = insertBusinessSettingsSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      const settings = await storage.updateBusinessSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating business settings:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data provided" });
+      }
+      res.status(500).json({ message: "Failed to update business settings" });
+    }
+  });
+
+  app.get('/api/settings/hours', adminOnly, async (req, res) => {
+    try {
+      const hours = await storage.getOperatingHours();
+      res.json(hours);
+    } catch (error) {
+      console.error("Error fetching operating hours:", error);
+      res.status(500).json({ message: "Failed to fetch operating hours" });
+    }
+  });
+
+  app.put('/api/settings/hours', adminOnly, async (req, res) => {
+    try {
+      const { insertOperatingHoursSchema } = await import('@shared/schema');
+      const { z } = await import('zod');
+      const hoursArraySchema = z.array(insertOperatingHoursSchema);
+      const validatedData = hoursArraySchema.parse(req.body);
+      const hours = await storage.updateOperatingHours(validatedData);
+      res.json(hours);
+    } catch (error) {
+      console.error("Error updating operating hours:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data provided" });
+      }
+      res.status(500).json({ message: "Failed to update operating hours" });
+    }
+  });
+
+  app.get('/api/settings/notifications', adminOnly, async (req, res) => {
+    try {
+      const settings = await storage.getNotificationSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching notification settings:", error);
+      res.status(500).json({ message: "Failed to fetch notification settings" });
+    }
+  });
+
+  app.put('/api/settings/notifications', adminOnly, async (req, res) => {
+    try {
+      const { insertNotificationSettingsSchema } = await import('@shared/schema');
+      const updateSchema = insertNotificationSettingsSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      const settings = await storage.updateNotificationSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating notification settings:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data provided" });
+      }
+      res.status(500).json({ message: "Failed to update notification settings" });
+    }
+  });
+
+  app.get('/api/settings/billing', adminOnly, async (req, res) => {
+    try {
+      const settings = await storage.getBillingSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching billing settings:", error);
+      res.status(500).json({ message: "Failed to fetch billing settings" });
+    }
+  });
+
+  app.put('/api/settings/billing', adminOnly, async (req, res) => {
+    try {
+      const { insertBillingSettingsSchema } = await import('@shared/schema');
+      const updateSchema = insertBillingSettingsSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      const settings = await storage.updateBillingSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating billing settings:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data provided" });
+      }
+      res.status(500).json({ message: "Failed to update billing settings" });
+    }
+  });
+
+  app.get('/api/settings/integrations', adminOnly, async (req, res) => {
+    try {
+      const settings = await storage.getIntegrationSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching integration settings:", error);
+      res.status(500).json({ message: "Failed to fetch integration settings" });
+    }
+  });
+
+  app.put('/api/settings/integrations', adminOnly, async (req, res) => {
+    try {
+      const { insertIntegrationSettingsSchema } = await import('@shared/schema');
+      const updateSchema = insertIntegrationSettingsSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      const settings = await storage.updateIntegrationSettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating integration settings:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data provided" });
+      }
+      res.status(500).json({ message: "Failed to update integration settings" });
+    }
+  });
+
+  app.get('/api/settings/security', adminOnly, async (req, res) => {
+    try {
+      const settings = await storage.getSecuritySettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching security settings:", error);
+      res.status(500).json({ message: "Failed to fetch security settings" });
+    }
+  });
+
+  app.put('/api/settings/security', adminOnly, async (req, res) => {
+    try {
+      const { insertSecuritySettingsSchema } = await import('@shared/schema');
+      const updateSchema = insertSecuritySettingsSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      const settings = await storage.updateSecuritySettings(validatedData);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating security settings:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid data provided" });
+      }
+      res.status(500).json({ message: "Failed to update security settings" });
     }
   });
 
@@ -238,6 +440,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching vehicles:", error);
       res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  // Create vehicle for a specific customer
+  app.post('/api/customers/:customerId/vehicles', isAuthenticated, filterDataByRole, async (req: any, res) => {
+    try {
+      const { customerId } = req.params;
+      const roleContext = req.roleContext;
+      
+      // For clients, ensure they can only create vehicles for their own customer
+      if (roleContext.role === 'client') {
+        const customer = await storage.getCustomerByEmail(req.user.email);
+        if (!customer || customer.id !== customerId) {
+          return res.status(403).json({ message: "Access denied - you can only create vehicles for your own profile" });
+        }
+      }
+      
+      // Parse and validate vehicle data
+      const vehicleData = insertVehicleSchema.parse({
+        ...req.body,
+        customerId, // Override customerId from URL param
+      });
+      
+      const vehicle = await storage.createVehicle(vehicleData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "CREATE_VEHICLE",
+        entityType: "vehicle",
+        entityId: vehicle.id,
+        newValues: vehicle,
+        status: "success",
+      });
+
+      res.status(201).json(vehicle);
+    } catch (error) {
+      console.error("Error creating vehicle:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid vehicle data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create vehicle" });
     }
   });
 
@@ -696,6 +940,546 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user role:", error);
       res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // Inventory routes - Technicians and Admins only
+  app.get('/api/inventory', technicianOrAdmin, async (req, res) => {
+    try {
+      const items = await storage.getInventoryItems();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching inventory:", error);
+      res.status(500).json({ message: "Failed to fetch inventory items" });
+    }
+  });
+
+  app.get('/api/inventory/low-stock', technicianOrAdmin, async (req, res) => {
+    try {
+      const items = await storage.getLowStockItems();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching low stock items:", error);
+      res.status(500).json({ message: "Failed to fetch low stock items" });
+    }
+  });
+
+  app.get('/api/inventory/:id', technicianOrAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const item = await storage.getInventoryItem(id);
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Error fetching inventory item:", error);
+      res.status(500).json({ message: "Failed to fetch inventory item" });
+    }
+  });
+
+  app.post('/api/inventory', adminOnly, async (req: any, res) => {
+    try {
+      const itemData = insertInventorySchema.parse(req.body);
+      const item = await storage.createInventoryItem(itemData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "CREATE_INVENTORY_ITEM",
+        entityType: "inventory",
+        entityId: item.id,
+        newValues: item,
+        status: "success",
+      });
+
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Error creating inventory item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid inventory data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create inventory item" });
+    }
+  });
+
+  app.patch('/api/inventory/:id', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const itemData = insertInventorySchema.partial().parse(req.body);
+      const item = await storage.updateInventoryItem(id, itemData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_INVENTORY_ITEM",
+        entityType: "inventory",
+        entityId: id,
+        newValues: itemData,
+        status: "success",
+      });
+
+      res.json(item);
+    } catch (error) {
+      console.error("Error updating inventory item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid inventory data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update inventory item" });
+    }
+  });
+
+  app.patch('/api/inventory/:id/quantity', technicianOrAdmin, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { quantity } = req.body;
+      
+      if (typeof quantity !== 'number' || quantity < 0) {
+        return res.status(400).json({ message: "Invalid quantity" });
+      }
+      
+      const item = await storage.updateInventoryQuantity(id, quantity);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_INVENTORY_QUANTITY",
+        entityType: "inventory",
+        entityId: id,
+        newValues: { quantity },
+        status: "success",
+      });
+
+      res.json(item);
+    } catch (error) {
+      console.error("Error updating inventory quantity:", error);
+      res.status(500).json({ message: "Failed to update inventory quantity" });
+    }
+  });
+
+  app.delete('/api/inventory/:id', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteInventoryItem(id);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "DELETE_INVENTORY_ITEM",
+        entityType: "inventory",
+        entityId: id,
+        status: "success",
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      res.status(500).json({ message: "Failed to delete inventory item" });
+    }
+  });
+
+  // Review Campaign Routes (Admin only)
+  app.get('/api/campaigns', adminOnly, async (req, res) => {
+    try {
+      const campaigns = await storage.getReviewCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching review campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch review campaigns" });
+    }
+  });
+
+  app.get('/api/campaigns/:id', adminOnly, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const campaign = await storage.getReviewCampaign(id);
+      
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error fetching review campaign:", error);
+      res.status(500).json({ message: "Failed to fetch review campaign" });
+    }
+  });
+
+  app.post('/api/campaigns', adminOnly, async (req: any, res) => {
+    try {
+      const { insertReviewCampaignSchema } = await import('@shared/schema');
+      const validatedData = insertReviewCampaignSchema.parse(req.body);
+      const campaign = await storage.createReviewCampaign(validatedData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "CREATE_CAMPAIGN",
+        entityType: "review_campaigns",
+        entityId: campaign.id,
+        status: "success",
+      });
+      
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("Error creating review campaign:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid campaign data", errors: error });
+      }
+      res.status(500).json({ message: "Failed to create review campaign" });
+    }
+  });
+
+  app.patch('/api/campaigns/:id', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const campaign = await storage.updateReviewCampaign(id, req.body);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_CAMPAIGN",
+        entityType: "review_campaigns",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error updating review campaign:", error);
+      res.status(500).json({ message: "Failed to update review campaign" });
+    }
+  });
+
+  app.patch('/api/campaigns/:id/status', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const campaign = await storage.updateCampaignStatus(id, status);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_CAMPAIGN_STATUS",
+        entityType: "review_campaigns",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error updating campaign status:", error);
+      res.status(500).json({ message: "Failed to update campaign status" });
+    }
+  });
+
+  app.delete('/api/campaigns/:id', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteReviewCampaign(id);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "DELETE_CAMPAIGN",
+        entityType: "review_campaigns",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting review campaign:", error);
+      res.status(500).json({ message: "Failed to delete review campaign" });
+    }
+  });
+
+  // Review Routes (Admin only)
+  app.get('/api/reviews', adminOnly, async (req, res) => {
+    try {
+      const { campaignId } = req.query;
+      
+      let reviews;
+      if (campaignId && typeof campaignId === 'string') {
+        reviews = await storage.getReviewsByCampaign(campaignId);
+      } else {
+        reviews = await storage.getReviews();
+      }
+      
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ message: "Failed to fetch reviews" });
+    }
+  });
+
+  app.get('/api/reviews/:id', adminOnly, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const review = await storage.getReview(id);
+      
+      if (!review) {
+        return res.status(404).json({ message: "Review not found" });
+      }
+      
+      res.json(review);
+    } catch (error) {
+      console.error("Error fetching review:", error);
+      res.status(500).json({ message: "Failed to fetch review" });
+    }
+  });
+
+  app.post('/api/reviews', adminOnly, async (req: any, res) => {
+    try {
+      const review = await storage.createReview(req.body);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "CREATE_REVIEW",
+        entityType: "reviews",
+        entityId: review.id,
+        status: "success",
+      });
+      
+      res.status(201).json(review);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ message: "Failed to create review" });
+    }
+  });
+
+  app.patch('/api/reviews/:id', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const review = await storage.updateReview(id, req.body);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_REVIEW",
+        entityType: "reviews",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.json(review);
+    } catch (error) {
+      console.error("Error updating review:", error);
+      res.status(500).json({ message: "Failed to update review" });
+    }
+  });
+
+  app.delete('/api/reviews/:id', adminOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteReview(id);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "DELETE_REVIEW",
+        entityType: "reviews",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ message: "Failed to delete review" });
+    }
+  });
+
+  // Conversation Routes (Messaging System)
+  app.get('/api/conversations', authenticatedOnly, async (req, res) => {
+    try {
+      const conversations = await storage.getConversations();
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ message: "Failed to fetch conversations" });
+    }
+  });
+
+  app.get('/api/conversations/:id', authenticatedOnly, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const conversation = await storage.getConversation(id);
+      
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+
+  app.post('/api/conversations', authenticatedOnly, async (req: any, res) => {
+    try {
+      const { insertConversationSchema } = await import('@shared/schema');
+      
+      // Convert timestamp strings to Date objects before validation
+      const bodyWithDates = {
+        ...req.body,
+        lastMessageAt: req.body.lastMessageAt ? new Date(req.body.lastMessageAt) : undefined,
+      };
+      
+      const validatedData = insertConversationSchema.parse(bodyWithDates);
+      const conversation = await storage.createConversation(validatedData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "CREATE_CONVERSATION",
+        entityType: "conversations",
+        entityId: conversation.id,
+        status: "success",
+      });
+      
+      res.status(201).json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid conversation data", errors: error });
+      }
+      res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  app.patch('/api/conversations/:id', authenticatedOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Convert timestamp strings to Date objects before updating
+      const bodyWithDates = {
+        ...req.body,
+        lastMessageAt: req.body.lastMessageAt ? new Date(req.body.lastMessageAt) : undefined,
+      };
+      
+      const conversation = await storage.updateConversation(id, bodyWithDates);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_CONVERSATION",
+        entityType: "conversations",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      res.status(500).json({ message: "Failed to update conversation" });
+    }
+  });
+
+  app.delete('/api/conversations/:id', authenticatedOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteConversation(id);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "DELETE_CONVERSATION",
+        entityType: "conversations",
+        entityId: id,
+        status: "success",
+      });
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ message: "Failed to delete conversation" });
+    }
+  });
+
+  // Message Routes
+  app.get('/api/conversations/:conversationId/messages', authenticatedOnly, async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const messages = await storage.getMessagesByConversation(conversationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/conversations/:conversationId/messages', authenticatedOnly, async (req: any, res) => {
+    try {
+      const { insertMessageSchema } = await import('@shared/schema');
+      const { conversationId } = req.params;
+      
+      // Get conversation to populate phone numbers
+      const conversation = await storage.getConversation(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+      
+      // Get system phone number from settings (or use a default)
+      const systemPhone = process.env.TWILIO_PHONE_NUMBER || "+15551234567";
+      
+      // Populate phone fields based on direction
+      const direction = req.body.direction || 'outbound';
+      const phoneFrom = direction === 'outbound' ? systemPhone : conversation.phoneNumber;
+      const phoneTo = direction === 'outbound' ? conversation.phoneNumber : systemPhone;
+      
+      const messageData = {
+        ...req.body,
+        conversationId,
+        direction,
+        phoneFrom,
+        phoneTo,
+        sentBy: req.user.id,
+      };
+      
+      const validatedData = insertMessageSchema.parse(messageData);
+      const message = await storage.createMessage(validatedData);
+      
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "SEND_MESSAGE",
+        entityType: "messages",
+        entityId: message.id,
+        status: "success",
+      });
+      
+      res.status(201).json(message);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ message: "Invalid message data", errors: error });
+      }
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.patch('/api/messages/:id/read', authenticatedOnly, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const message = await storage.markMessageAsRead(id);
+      res.json(message);
+    } catch (error) {
+      console.error("Error marking message as read:", error);
+      res.status(500).json({ message: "Failed to mark message as read" });
+    }
+  });
+
+  app.patch('/api/conversations/:conversationId/read-all', authenticatedOnly, async (req: any, res) => {
+    try {
+      const { conversationId } = req.params;
+      await storage.markConversationMessagesAsRead(conversationId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      res.status(500).json({ message: "Failed to mark messages as read" });
     }
   });
 

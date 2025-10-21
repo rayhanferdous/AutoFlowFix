@@ -51,6 +51,8 @@
     "connect-pg-simple": "^10.0.0",
     "date-fns": "^3.6.0",
     "drizzle-orm": "^0.39.1",
+    "pg": "^8.11.0",
+  "dotenv": "^16.3.1",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",

@@ -25,82 +25,76 @@ import Users from "@/pages/users";
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
-
-
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={Dashboard} />
-          <Route path="/customers">
-            <ProtectedRoute path="/customers">
-              <Customers />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/appointments">
-            <ProtectedRoute path="/appointments">
-              <Appointments />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/repair-orders">
-            <ProtectedRoute path="/repair-orders">
-              <RepairOrders />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/customer-portal">
-            <ProtectedRoute path="/customer-portal">
-              <CustomerPortal />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/inspections">
-            <ProtectedRoute path="/inspections">
-              <Inspections />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/job-board">
-            <ProtectedRoute path="/job-board">
-              <JobBoard />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/messaging">
-            <ProtectedRoute path="/messaging">
-              <Messaging />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/reviews">
-            <ProtectedRoute path="/reviews">
-              <Reviews />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/invoices">
-            <ProtectedRoute path="/invoices">
-              <Invoices />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/inventory">
-            <ProtectedRoute path="/inventory">
-              <Inventory />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/reporting">
-            <ProtectedRoute path="/reporting">
-              <Reporting />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/users">
-            <ProtectedRoute path="/users">
-              <Users />
-            </ProtectedRoute>
-          </Route>
-          <Route path="/settings">
-            <ProtectedRoute path="/settings">
-              <Settings />
-            </ProtectedRoute>
-          </Route>
-        </>
-      )}
+      <Route path="/">
+        {isLoading || !isAuthenticated ? <Landing /> : <Dashboard />}
+      </Route>
+      <Route path="/customers">
+        <ProtectedRoute path="/customers">
+          <Customers />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/appointments">
+        <ProtectedRoute path="/appointments">
+          <Appointments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/repair-orders">
+        <ProtectedRoute path="/repair-orders">
+          <RepairOrders />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/customer-portal">
+        <ProtectedRoute path="/customer-portal">
+          <CustomerPortal />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/inspections">
+        <ProtectedRoute path="/inspections">
+          <Inspections />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/job-board">
+        <ProtectedRoute path="/job-board">
+          <JobBoard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/messaging">
+        <ProtectedRoute path="/messaging">
+          <Messaging />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/reviews">
+        <ProtectedRoute path="/reviews">
+          <Reviews />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/invoices">
+        <ProtectedRoute path="/invoices">
+          <Invoices />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/inventory">
+        <ProtectedRoute path="/inventory">
+          <Inventory />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/reporting">
+        <ProtectedRoute path="/reporting">
+          <Reporting />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/users">
+        <ProtectedRoute path="/users">
+          <Users />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute path="/settings">
+          <Settings />
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

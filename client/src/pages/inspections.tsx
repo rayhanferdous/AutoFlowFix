@@ -11,6 +11,7 @@ import Sidebar from "@/components/sidebar";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Inspection, InsertInspection, Customer, Vehicle } from "@shared/schema";
+import { Plus } from "lucide-react";
 
 export default function Inspections() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -60,6 +61,26 @@ export default function Inspections() {
       toast({
         title: "Error",
         description: error.message || "Failed to create inspection",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update inspection status mutation
+  const updateInspectionMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => 
+      apiRequest('PUT', `/api/inspections/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/inspections'] });
+      toast({
+        title: "Success",
+        description: "Inspection status updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update inspection status",
         variant: "destructive",
       });
     },
@@ -116,6 +137,10 @@ export default function Inspections() {
     createInspectionMutation.mutate(inspectionData);
   };
 
+  const handleStatusChange = (inspectionId: string, newStatus: string) => {
+    updateInspectionMutation.mutate({ id: inspectionId, status: newStatus });
+  };
+
   const handleViewDetails = (inspection: Inspection) => {
     toast({
       title: "Inspection Details",
@@ -143,7 +168,7 @@ export default function Inspections() {
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-new-inspection">
-                  <i className="fas fa-plus mr-2"></i>
+                  <Plus className="w-4 h-4 mr-2" />
                   New Inspection
                 </Button>
               </DialogTrigger>
@@ -245,13 +270,15 @@ export default function Inspections() {
                       <CardTitle className="text-lg">{inspection.id}</CardTitle>
                       <CardDescription>{inspection.vehicleInfo}</CardDescription>
                     </div>
-                    <Badge className={getStatusColor(inspection.status || "pending")}>
-                      {inspection.status || "pending"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge className={getStatusColor(inspection.status || "pending")}>
+                        {inspection.status || "pending"}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Customer</p>
                       <p className="font-medium">{inspection.customerName}</p>
@@ -259,6 +286,23 @@ export default function Inspections() {
                     <div>
                       <p className="text-sm font-medium text-muted-foreground">Progress</p>
                       <p className="font-medium">{inspection.completedItems}/{inspection.checklistItems} items</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Update Status</Label>
+                      <Select
+                        value={inspection.status || "pending"}
+                        onValueChange={(value) => handleStatusChange(inspection.id, value)}
+                        disabled={updateInspectionMutation.isPending}
+                      >
+                        <SelectTrigger data-testid={`select-status-${inspection.id}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in-progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex gap-2">
                       <Button 

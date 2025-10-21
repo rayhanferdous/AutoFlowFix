@@ -7,10 +7,25 @@ import SystemHealth from "@/components/system-health";
 import ErrorNotification from "@/components/error-notification";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
+import { 
+  ClipboardCheck, 
+  Wrench, 
+  UserPlus, 
+  BarChart3, 
+  CalendarPlus, 
+  Car, 
+  History, 
+  ListTodo, 
+  User,
+  Plus,
+  Calendar
+} from "lucide-react";
 
 export default function Dashboard() {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
+  const [, setLocation] = useLocation();
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<Metrics>({
     queryKey: ["/api/dashboard/metrics"],
@@ -73,7 +88,7 @@ export default function Dashboard() {
   // Show loading if authentication is still in progress
   if (authLoading) {
     return (
-      <div className="min-h-screen flex bg-background">
+      <div className="h-screen flex bg-background overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex items-center justify-center">
           <div className="text-center">
@@ -111,18 +126,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="h-screen flex bg-background overflow-hidden">
       <Sidebar />
       
-      <main className="flex-1 flex flex-col min-h-screen">
+      <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="bg-card border-b border-border px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground" data-testid="text-dashboard-title">
+        <header className="bg-card border-b border-border px-4 sm:px-6 lg:px-8 py-4 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground" data-testid="text-dashboard-title">
                 {isAdmin ? 'Manager Dashboard' : isTechnician ? 'Technician Dashboard' : 'My Garage Portal'}
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-1">
                 {isAdmin ? 
                   'Complete overview of all garage operations and performance metrics.' :
                   isTechnician ? 
@@ -132,17 +147,18 @@ export default function Dashboard() {
               </p>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                <i className="fas fa-user text-sm mr-1"></i>
+                <User className="w-4 h-4 mr-1" />
                 {isAdmin ? 'Shop Manager' : isTechnician ? 'Technician' : 'Client'}
               </Badge>
               {(isAdmin || isClient) && (
                 <Button 
                   onClick={handleNewAppointment}
                   data-testid="button-new-appointment"
+                  className="hidden sm:flex"
                 >
-                  <i className="fas fa-plus mr-2"></i>
+                  <Plus className="w-4 h-4 mr-2" />
                   New Appointment
                 </Button>
               )}
@@ -150,7 +166,8 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <div className="flex-1 p-8 space-y-8">
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
           {/* System Health - Admin only */}
           {isAdmin && <SystemHealth />}
 
@@ -158,14 +175,14 @@ export default function Dashboard() {
           {isAdmin && (
             <>
               {/* Key Performance Metrics - Admin Full View */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
                 <div className="lg:col-span-2">
                   <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <CardTitle>Today's Operations</CardTitle>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <i className="fas fa-calendar"></i>
+                          <Calendar className="w-4 h-4" />
                           <span data-testid="text-current-date">
                             {new Date().toLocaleDateString("en-US", { 
                               year: "numeric", 
@@ -178,39 +195,39 @@ export default function Dashboard() {
                     </CardHeader>
                     <CardContent>
                       {metricsLoading ? (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                           {[...Array(4)].map((_, i) => (
-                            <div key={i} className="text-center p-4 bg-accent rounded-lg animate-pulse">
+                            <div key={i} className="text-center p-3 sm:p-4 bg-accent rounded-lg animate-pulse">
                               <div className="h-8 bg-muted rounded mb-2"></div>
                               <div className="h-4 bg-muted rounded"></div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <div className="text-center p-4 bg-accent rounded-lg">
-                            <div className="text-2xl font-bold text-blue-600" data-testid="metric-appointments">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                          <div className="text-center p-3 sm:p-4 bg-accent rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-blue-600" data-testid="metric-appointments">
                               {(metrics as Metrics)?.todayAppointments || 0}
                             </div>
-                            <div className="text-sm text-muted-foreground">Appointments</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Appointments</div>
                           </div>
-                          <div className="text-center p-4 bg-accent rounded-lg">
-                            <div className="text-2xl font-bold text-orange-600" data-testid="metric-repair-orders">
+                          <div className="text-center p-3 sm:p-4 bg-accent rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-orange-600" data-testid="metric-repair-orders">
                               {(metrics as Metrics)?.activeRepairOrders || 0}
                             </div>
-                            <div className="text-sm text-muted-foreground">Repair Orders</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Repair Orders</div>
                           </div>
-                          <div className="text-center p-4 bg-accent rounded-lg">
-                            <div className="text-2xl font-bold text-green-600" data-testid="metric-customers">
+                          <div className="text-center p-3 sm:p-4 bg-accent rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-green-600" data-testid="metric-customers">
                               {(metrics as Metrics)?.totalCustomers || 0}
                             </div>
-                            <div className="text-sm text-muted-foreground">Total Customers</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Total Customers</div>
                           </div>
-                          <div className="text-center p-4 bg-accent rounded-lg">
-                            <div className="text-2xl font-bold text-purple-600" data-testid="metric-revenue">
+                          <div className="text-center p-3 sm:p-4 bg-accent rounded-lg">
+                            <div className="text-xl sm:text-2xl font-bold text-purple-600" data-testid="metric-revenue">
                               ${(metrics as Metrics)?.todayRevenue || 0}
                             </div>
-                            <div className="text-sm text-muted-foreground">Today's Revenue</div>
+                            <div className="text-xs sm:text-sm text-muted-foreground mt-1">Today's Revenue</div>
                           </div>
                         </div>
                       )}
@@ -249,7 +266,7 @@ export default function Dashboard() {
           {isTechnician && (
             <>
               {/* Technician Metrics - Limited View */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>My Work Today</CardTitle>
@@ -304,7 +321,7 @@ export default function Dashboard() {
           {isClient && (
             <>
               {/* Client Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 <Card>
                   <CardHeader>
                     <CardTitle>My Vehicles</CardTitle>
@@ -662,129 +679,139 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {isAdmin && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-new-inspection"
+                    onClick={() => setLocation('/inspections')}
                   >
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-clipboard-check text-blue-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <ClipboardCheck className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">New Inspection</span>
+                    <span className="text-xs sm:text-sm font-medium">New Inspection</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-create-repair-order"
+                    onClick={() => setLocation('/repair-orders')}
                   >
-                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-wrench text-orange-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Wrench className="text-orange-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Create Repair Order</span>
+                    <span className="text-xs sm:text-sm font-medium">Create Repair Order</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-add-customer"
+                    onClick={() => setLocation('/customers')}
                   >
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-user-plus text-green-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <UserPlus className="text-green-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Add Customer</span>
+                    <span className="text-xs sm:text-sm font-medium">Add Customer</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-generate-report"
+                    onClick={() => setLocation('/reporting')}
                   >
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-chart-bar text-purple-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <BarChart3 className="text-purple-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Generate Report</span>
+                    <span className="text-xs sm:text-sm font-medium">Generate Report</span>
                   </Button>
                 </div>
               )}
 
               {isTechnician && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-new-inspection"
+                    onClick={() => setLocation('/inspections')}
                   >
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-clipboard-check text-blue-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <ClipboardCheck className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Start Inspection</span>
+                    <span className="text-xs sm:text-sm font-medium">Start Inspection</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-update-repair-order"
+                    onClick={() => setLocation('/repair-orders')}
                   >
-                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-wrench text-orange-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Wrench className="text-orange-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Update Order</span>
+                    <span className="text-xs sm:text-sm font-medium">Update Order</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-view-job-board"
+                    onClick={() => setLocation('/job-board')}
                   >
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-tasks text-green-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <ListTodo className="text-green-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Job Board</span>
+                    <span className="text-xs sm:text-sm font-medium">Job Board</span>
                   </Button>
                 </div>
               )}
 
               {isClient && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-book-appointment"
                     onClick={handleNewAppointment}
                   >
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-calendar-plus text-blue-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <CalendarPlus className="text-blue-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Book Appointment</span>
+                    <span className="text-xs sm:text-sm font-medium">Book Appointment</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-view-vehicles"
+                    onClick={() => setLocation('/customer-portal')}
                   >
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-car text-green-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Car className="text-green-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">My Vehicles</span>
+                    <span className="text-xs sm:text-sm font-medium">My Vehicles</span>
                   </Button>
 
                   <Button 
                     variant="outline" 
-                    className="flex flex-col items-center gap-3 p-6 h-auto"
+                    className="flex flex-col items-center gap-2 sm:gap-3 p-4 sm:p-6 h-auto"
                     data-testid="button-service-history"
+                    onClick={() => setLocation('/customer-portal')}
                   >
-                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <i className="fas fa-history text-orange-600 text-xl"></i>
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <History className="text-orange-600 w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <span className="text-sm font-medium">Service History</span>
+                    <span className="text-xs sm:text-sm font-medium">Service History</span>
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       </main>
 

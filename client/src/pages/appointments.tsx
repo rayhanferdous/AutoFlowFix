@@ -31,6 +31,14 @@ type Appointment = {
   createdAt: string;
 };
 
+// Helper function to convert Date to local YYYY-MM-DD string
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function Appointments() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -204,8 +212,8 @@ export default function Appointments() {
   const filteredAppointments = Array.isArray(appointments) ? 
     (selectedDate && !showingAllAppointments ? 
       appointments.filter((appointment: Appointment) => {
-        const appointmentDate = new Date(appointment.scheduledDate).toISOString().split('T')[0];
-        return appointmentDate === selectedDate;
+        const appointmentDate = new Date(appointment.scheduledDate);
+        return toLocalDateString(appointmentDate) === selectedDate;
       }) : 
       [...appointments].sort((a: Appointment, b: Appointment) => 
         new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
@@ -235,7 +243,7 @@ export default function Appointments() {
                   Schedule Appointment
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Schedule New Appointment</DialogTitle>
                   <DialogDescription>
@@ -466,7 +474,7 @@ export default function Appointments() {
                   <Button 
                     variant="outline" 
                     onClick={() => {
-                      setSelectedDate(new Date().toISOString().split('T')[0]);
+                      setSelectedDate(toLocalDateString(new Date()));
                       setShowingAllAppointments(false);
                     }}
                     data-testid="button-today"
@@ -607,7 +615,7 @@ export default function Appointments() {
 
       {/* View Appointment Dialog */}
       <Dialog open={!!viewingAppointment} onOpenChange={() => setViewingAppointment(null)}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Appointment Details</DialogTitle>
             <DialogDescription>
@@ -684,7 +692,7 @@ export default function Appointments() {
 
       {/* Edit Appointment Dialog */}
       <Dialog open={!!editingAppointment} onOpenChange={() => setEditingAppointment(null)}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Appointment</DialogTitle>
             <DialogDescription>

@@ -32,6 +32,7 @@ type Customer = {
 export default function Customers() {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: customers, isLoading } = useQuery({
@@ -119,7 +120,7 @@ export default function Customers() {
                   Add Customer
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add New Customer</DialogTitle>
                   <DialogDescription>
@@ -417,7 +418,12 @@ export default function Customers() {
                         <Badge variant="secondary">
                           Member since {new Date(customer.createdAt).getFullYear()}
                         </Badge>
-                        <Button variant="ghost" size="sm" data-testid={`button-view-customer-${customer.id}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setViewingCustomer(customer)}
+                          data-testid={`button-view-customer-${customer.id}`}
+                        >
                           <i className="fas fa-eye mr-1"></i>
                           View
                         </Button>
@@ -429,6 +435,106 @@ export default function Customers() {
             </CardContent>
           </Card>
         </div>
+
+        {/* View Customer Dialog */}
+        <Dialog open={!!viewingCustomer} onOpenChange={() => setViewingCustomer(null)}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Customer Details</DialogTitle>
+              <DialogDescription>
+                View customer information and contact details
+              </DialogDescription>
+            </DialogHeader>
+            
+            {viewingCustomer && (
+              <div className="space-y-6">
+                {/* Customer Name */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                    <span className="text-primary font-bold text-2xl">
+                      {viewingCustomer.firstName[0]}{viewingCustomer.lastName[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-semibold text-foreground">
+                      {viewingCustomer.firstName} {viewingCustomer.lastName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Member since {new Date(viewingCustomer.createdAt).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div>
+                  <h4 className="font-semibold mb-3 text-foreground">Contact Information</h4>
+                  <div className="space-y-3">
+                    {viewingCustomer.email && (
+                      <div className="flex items-center gap-3 p-3 bg-accent rounded-lg">
+                        <div className="w-10 h-10 bg-background rounded-full flex items-center justify-center">
+                          <i className="fas fa-envelope text-primary"></i>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Email</p>
+                          <p className="font-medium">{viewingCustomer.email}</p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {viewingCustomer.phone && (
+                      <div className="flex items-center gap-3 p-3 bg-accent rounded-lg">
+                        <div className="w-10 h-10 bg-background rounded-full flex items-center justify-center">
+                          <i className="fas fa-phone text-primary"></i>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Phone</p>
+                          <p className="font-medium">{viewingCustomer.phone}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Address Information */}
+                {(viewingCustomer.address || viewingCustomer.city || viewingCustomer.state || viewingCustomer.zipCode) && (
+                  <div>
+                    <h4 className="font-semibold mb-3 text-foreground">Address</h4>
+                    <div className="p-3 bg-accent rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-background rounded-full flex items-center justify-center flex-shrink-0">
+                          <i className="fas fa-map-marker-alt text-primary"></i>
+                        </div>
+                        <div>
+                          {viewingCustomer.address && (
+                            <p className="font-medium">{viewingCustomer.address}</p>
+                          )}
+                          {(viewingCustomer.city || viewingCustomer.state || viewingCustomer.zipCode) && (
+                            <p className="text-muted-foreground">
+                              {[viewingCustomer.city, viewingCustomer.state, viewingCustomer.zipCode]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Button */}
+                <div className="flex justify-end pt-4">
+                  <Button onClick={() => setViewingCustomer(null)} data-testid="button-close-view">
+                    Close
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
