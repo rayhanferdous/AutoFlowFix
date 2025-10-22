@@ -29,11 +29,12 @@ RUN apk add --no-cache dumb-init curl
 COPY package*.json ./
 
 # Install production dependencies only
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    NODE_OPTIONS="--enable-source-maps --max-old-space-size=8192"
+
 RUN npm ci --only=production
 
 # Copy built application from builder stage
-# Both dist/index.js (server) and dist/public (client) should be here
 COPY --from=builder /app/dist ./dist
 
 # Expose port (matches your server configuration)
@@ -46,5 +47,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the production application with better error logging
-CMD ["node", "--trace-warnings", "--unhandled-rejections=strict", "dist/prod-server.js"]
+# Start the production application with better error logging and proper path
+CMD ["node", "--trace-warnings", "--unhandled-rejections=strict", "dist/server.js"]
