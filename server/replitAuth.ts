@@ -10,12 +10,19 @@ export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   
   const pgStore = connectPg(session);
+  // Allow controlling whether the sessions table is auto-created. Default: true
+  const createTableIfMissing = process.env.CREATE_SESSIONS_TABLE !== 'false';
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing,
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  try {
+    console.log(`🔁 Session store initialized (createTableIfMissing=${createTableIfMissing})`);
+  } catch (err) {
+    console.error('❌ Failed to initialize session store:', err);
+  }
   
   return session({
     secret: process.env.SESSION_SECRET || 'temporary-secret-key-change-me',
@@ -24,7 +31,12 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      // By default set secure cookies in production, but allow override for
+      // environments behind a proxy/terminating TLS where the app receives
+      // plain HTTP. Set SESSION_COOKIE_SECURE=false to disable secure flag.
+      secure: process.env.SESSION_COOKIE_SECURE
+        ? process.env.SESSION_COOKIE_SECURE === 'true'
+        : process.env.NODE_ENV === "production",
       maxAge: sessionTtl,
     },
   });
@@ -102,6 +114,8 @@ export async function setupAuth(app: Express) {
         if (err) {
           return res.status(500).json({ message: "Login failed" });
         }
+        // Debug: log session id and user for troubleshooting
+        try { console.log(`🔐 User logged in: ${user.id}, sessionID=${(req.session as any)?.id || 'none'}`); } catch (e) {}
         return res.json({ user: { id: user.id, username: user.username, email: user.email, role: user.role } });
       });
     })(req, res, next);
@@ -141,6 +155,7 @@ export async function setupAuth(app: Express) {
         if (err) {
           return res.status(500).json({ message: "Registration successful but login failed" });
         }
+        try { console.log(`🆕 User registered and logged in: ${newUser.id}, sessionID=${(req.session as any)?.id || 'none'}`); } catch (e) {}
         return res.status(201).json({ 
           user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role } 
         });
