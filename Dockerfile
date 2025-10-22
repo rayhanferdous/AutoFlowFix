@@ -41,8 +41,9 @@ COPY --from=builder /app/dist ./dist
 EXPOSE 5000
 
 # Health check using curl with better error reporting
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl --max-time 3 -f http://127.0.0.1:5000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+    CMD node -e "require('http').get('http://127.0.0.1:5000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})" || exit 1
+
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
