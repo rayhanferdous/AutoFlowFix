@@ -58,15 +58,29 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    const { setupVite } = await import("./vite");
+  // In production, serve static files directly
+  if (app.get("env") === "production") {
+    const path = await import("path");
+    const fs = await import("fs");
+    const { fileURLToPath } = await import("url");
+    
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const distPath = path.resolve(__dirname, "public");
+
+    if (!fs.existsSync(distPath)) {
+      throw new Error(`Could not find the build directory: ${distPath}`);
+    }
+
+    app.use(express.static(distPath));
+    app.use("*", (_req, res) => {
+      res.sendFile(path.resolve(distPath, "index.html"));
+    });
+  } 
+  // In development, setup Vite dev server
+  else {
+    const { setupVite } = await import("./vite.js");
     await setupVite(app, server);
-  } else {
-    const { serveStatic } = await import("./vite");
-    serveStatic(app);
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
