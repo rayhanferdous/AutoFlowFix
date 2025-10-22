@@ -39,12 +39,12 @@ COPY --from=builder /app/dist ./dist
 # Expose port (matches your server configuration)
 EXPOSE 5000
 
-# Health check using curl (simpler and more reliable)
+# Health check using curl with better error reporting
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
-    CMD curl -f http://127.0.0.1:5000 || exit 1
+    CMD curl -f http://127.0.0.1:5000/api/system/health 2>&1 || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the production application
-CMD ["node", "dist/prod-server.js"]
+# Start the production application with better error logging
+CMD ["node", "--trace-warnings", "--unhandled-rejections=strict", "dist/prod-server.js"]
