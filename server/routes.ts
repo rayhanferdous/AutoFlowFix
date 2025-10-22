@@ -30,18 +30,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const clientOwnershipMiddleware = createClientOwnershipMiddleware(storage);
 
   // Health endpoint (used by Coolify / load balancers)
+  // IMPORTANT: This must be registered BEFORE any auth middleware
   app.get('/api/health', async (_req, res) => {
     try {
       // Add a timeout to the DB check
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('DB check timeout')), 2000)
       );
-      const dbCheckPromise = storage.pool.query('SELECT 1');
       
-      await Promise.race([dbCheckPromise, timeoutPromise]);
-      res.json({ status: 'ok', database: 'connected' });
+      // Import pool directly to avoid circular dependencies
+      const { pool } = await import('./db');
+      const dbCheckPromise = pool.query('SELECT 1');
+      
+      // Catch DB errors so they don't crash the process
+      try {
+        await Promise.race([dbCheckPromise, timeoutPromise]);
+        res.json({ status: 'ok', database: 'connected' });
+      } catch (dbErr) {
+        // Don't throw DB errors, just report them
+        res.status(503).json({ 
+          status: 'error', 
+          database: 'unavailable',
+          error: dbErr instanceof Error ? dbErr.message : 'Unknown error' 
+        });
+      }
     } catch (err) {
-      console.error('Health check failed:', err);
+      // Don't throw system errors either
+      console.error('Health check error:', err);
       res.status(503).json({ 
         status: 'error', 
         database: 'unavailable',
