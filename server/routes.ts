@@ -83,6 +83,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to inspect session & cookies (only enabled when DEBUG_AUTH=1)
+  if (process.env.DEBUG_AUTH === '1') {
+    app.get('/api/debug/session', (req, res) => {
+      try {
+        const cookies = req.headers.cookie || null;
+        const sessionId = (req.session as any)?.id || null;
+        res.json({ cookies, sessionId, user: req.user || null, isAuthenticated: req.isAuthenticated?.() || false });
+      } catch (err) {
+        res.status(500).json({ error: (err as Error).message });
+      }
+    });
+  }
+
   app.post('/api/logout', isAuthenticated, async (req: any, res) => {
     try {
       req.logout((err: any) => {

@@ -37,6 +37,8 @@ export function getSession() {
       secure: process.env.SESSION_COOKIE_SECURE
         ? process.env.SESSION_COOKIE_SECURE === 'true'
         : process.env.NODE_ENV === "production",
+      // Allow overriding SameSite for cross-site cookie scenarios ("lax"|"strict"|"none")
+      sameSite: (process.env.SESSION_COOKIE_SAMESITE as any) || 'lax',
       maxAge: sessionTtl,
     },
   });

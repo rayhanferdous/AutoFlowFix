@@ -7,10 +7,21 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 // Only import log function directly, lazy load Vite setup
 import { log } from "./vite";
+import cors from 'cors';
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure CORS for frontend access. Set CORS_ORIGINS to a comma-separated
+// list of allowed origins, or set to '*' to allow all (not recommended for prod).
+const corsOriginsEnv = process.env.CORS_ORIGINS || '';
+const allowedOrigins = corsOriginsEnv ? corsOriginsEnv.split(',').map(s => s.trim()) : undefined;
+app.use(cors({
+  origin: allowedOrigins && allowedOrigins.length > 0 ? allowedOrigins : true,
+  credentials: true,
+  exposedHeaders: ['set-cookie'],
+}));
 
 // Health route is registered inside `registerRoutes` in routes.ts
 
