@@ -158,8 +158,9 @@ export default function Inventory() {
       category: "",
       quantity: 0,
       minStock: 0,
-      unitCost: 0,
-      sellingPrice: 0,
+      // unitCost and sellingPrice are strings per zod schema (decimal inputs are strings)
+      unitCost: "0",
+      sellingPrice: undefined,
       supplier: "",
       supplierPartNumber: "",
       location: "",

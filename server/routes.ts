@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./localAuth";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { 
   adminOnly, 
   technicianOrAdmin, 
@@ -28,6 +28,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create ownership middleware with storage access
   const clientOwnershipMiddleware = createClientOwnershipMiddleware(storage);
+
+  // Health endpoint (used by Coolify / load balancers)
+  app.get('/api/health', async (_req, res) => {
+    try {
+      // basic db check
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { pool } = require('./db');
+      await pool.query('SELECT 1');
+      res.json({ status: 'ok', database: 'connected' });
+    } catch (err) {
+      res.status(503).json({ status: 'error', database: 'unavailable' });
+    }
+  });
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
