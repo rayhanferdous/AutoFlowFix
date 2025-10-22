@@ -39,6 +39,9 @@ export function getSession() {
         : process.env.NODE_ENV === "production",
       // Allow overriding SameSite for cross-site cookie scenarios ("lax"|"strict"|"none")
       sameSite: (process.env.SESSION_COOKIE_SAMESITE as any) || 'lax',
+      // Allow specifying cookie domain for deployments where backend
+      // is on a different host or when using wildcard domains like sslip.io
+      domain: process.env.SESSION_COOKIE_DOMAIN || undefined,
       maxAge: sessionTtl,
     },
   });
@@ -117,7 +120,11 @@ export async function setupAuth(app: Express) {
           return res.status(500).json({ message: "Login failed" });
         }
         // Debug: log session id and user for troubleshooting
-        try { console.log(`🔐 User logged in: ${user.id}, sessionID=${(req.session as any)?.id || 'none'}`); } catch (e) {}
+        try {
+          console.log(`🔐 User logged in: ${user.id}, sessionID=${(req.session as any)?.id || 'none'}`);
+          const setCookie = res.getHeader('set-cookie') || res.getHeader('Set-Cookie');
+          console.log('📦 Set-Cookie header on login response:', setCookie);
+        } catch (e) {}
         return res.json({ user: { id: user.id, username: user.username, email: user.email, role: user.role } });
       });
     })(req, res, next);
@@ -157,7 +164,11 @@ export async function setupAuth(app: Express) {
         if (err) {
           return res.status(500).json({ message: "Registration successful but login failed" });
         }
-        try { console.log(`🆕 User registered and logged in: ${newUser.id}, sessionID=${(req.session as any)?.id || 'none'}`); } catch (e) {}
+        try {
+          console.log(`🆕 User registered and logged in: ${newUser.id}, sessionID=${(req.session as any)?.id || 'none'}`);
+          const setCookie = res.getHeader('set-cookie') || res.getHeader('Set-Cookie');
+          console.log('📦 Set-Cookie header on register response:', setCookie);
+        } catch (e) {}
         return res.status(201).json({ 
           user: { id: newUser.id, username: newUser.username, email: newUser.email, role: newUser.role } 
         });
