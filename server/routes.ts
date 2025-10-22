@@ -32,13 +32,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health endpoint (used by Coolify / load balancers)
   app.get('/api/health', async (_req, res) => {
     try {
-      // basic db check
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { pool } = require('./db');
-      await pool.query('SELECT 1');
+      // Add a timeout to the DB check
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('DB check timeout')), 2000)
+      );
+      const dbCheckPromise = storage.pool.query('SELECT 1');
+      
+      await Promise.race([dbCheckPromise, timeoutPromise]);
       res.json({ status: 'ok', database: 'connected' });
     } catch (err) {
-      res.status(503).json({ status: 'error', database: 'unavailable' });
+      console.error('Health check failed:', err);
+      res.status(503).json({ 
+        status: 'error', 
+        database: 'unavailable',
+        error: err instanceof Error ? err.message : 'Unknown error' 
+      });
     }
   });
 

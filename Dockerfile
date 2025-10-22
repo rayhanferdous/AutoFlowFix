@@ -41,7 +41,7 @@ EXPOSE 5000
 
 # Health check using curl with better error reporting
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
-    CMD curl -f http://127.0.0.1:5000/api/system/health 2>&1 || exit 1
+    CMD curl -f http://127.0.0.1:5000/api/health 2>&1 || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
