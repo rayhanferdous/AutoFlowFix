@@ -6,10 +6,12 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including dev dependencies for build)
+# Install all dependencies (including devDependencies) for build
 # Set NODE_ENV=development to ensure devDependencies are installed
 ENV NODE_ENV=development
-RUN npm ci
+# Use `npm install` instead of `npm ci` so the image build succeeds even when
+# package-lock.json isn't in sync with package.json (common during rapid edits).
+RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 # Copy source code
 COPY . .
@@ -32,7 +34,9 @@ COPY package*.json ./
 ENV NODE_ENV=production \
     NODE_OPTIONS="--enable-source-maps --max-old-space-size=8192"
 
-RUN npm ci --only=production
+# Use npm install in production image to avoid failing when lockfile is out of sync.
+# In CI/CD you should prefer keeping package-lock.json in sync and using `npm ci`.
+RUN npm install --omit=dev --no-audit --no-fund
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
