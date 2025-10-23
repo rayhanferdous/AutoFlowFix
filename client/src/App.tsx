@@ -9,6 +9,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import Customers from "@/pages/customers";
+import Vehicles from "@/pages/vehicles";
 import Appointments from "@/pages/appointments";
 import RepairOrders from "@/pages/repair-orders";
 import CustomerPortal from "@/pages/customer-portal";
@@ -33,6 +34,11 @@ function Router() {
       <Route path="/customers">
         <ProtectedRoute path="/customers">
           <Customers />
+        </ProtectedRoute>
+      </Route>
+       <Route path="/vehicles">
+        <ProtectedRoute path="/vehicles">
+          <Vehicles />
         </ProtectedRoute>
       </Route>
       <Route path="/appointments">

@@ -24,10 +24,6 @@ app.use(cors({
 }));
 
 // Health route is registered inside `registerRoutes` in routes.ts
-
-
-
-
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

@@ -29,42 +29,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create ownership middleware with storage access
   const clientOwnershipMiddleware = createClientOwnershipMiddleware(storage);
 
-  // Health endpoint (used by Coolify / load balancers)
-  // IMPORTANT: This must be registered BEFORE any auth middleware
-  app.get('/api/health', async (_req, res) => {
-    try {
-      // Add a timeout to the DB check
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('DB check timeout')), 2000)
-      );
-      
-      // Import pool directly to avoid circular dependencies
-      const { pool } = await import('./db');
-      const dbCheckPromise = pool.query('SELECT 1');
-      
-      // Catch DB errors so they don't crash the process
-      try {
-        await Promise.race([dbCheckPromise, timeoutPromise]);
-        res.json({ status: 'ok', database: 'connected' });
-      } catch (dbErr) {
-        // Don't throw DB errors, just report them
-        res.status(503).json({ 
-          status: 'error', 
-          database: 'unavailable',
-          error: dbErr instanceof Error ? dbErr.message : 'Unknown error' 
-        });
-      }
-    } catch (err) {
-      // Don't throw system errors either
-      console.error('Health check error:', err);
-      res.status(503).json({ 
-        status: 'error', 
-        database: 'unavailable',
-        error: err instanceof Error ? err.message : 'Unknown error' 
-      });
-    }
-  });
-
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
@@ -82,19 +46,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
-
-  // Debug endpoint to inspect session & cookies (only enabled when DEBUG_AUTH=1)
-  if (process.env.DEBUG_AUTH === '1') {
-    app.get('/api/debug/session', (req, res) => {
-      try {
-        const cookies = req.headers.cookie || null;
-        const sessionId = (req.session as any)?.id || null;
-        res.json({ cookies, sessionId, user: req.user || null, isAuthenticated: req.isAuthenticated?.() || false });
-      } catch (err) {
-        res.status(500).json({ error: (err as Error).message });
-      }
-    });
-  }
 
   app.post('/api/logout', isAuthenticated, async (req: any, res) => {
     try {
@@ -365,6 +316,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Customer routes - Admin only for full customer management
+  // Get current user's customer profile (for clients)
+  app.get('/api/customers/me', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role === 'admin') {
+        return res.status(403).json({ message: "Admins don't have customer profiles" });
+      }
+      
+      const customer = await storage.getCustomerByUserId(req.user.id);
+      
+      if (!customer) {
+        return res.status(404).json({ message: "No customer profile found for this user" });
+      }
+      
+      res.json(customer);
+    } catch (error) {
+      console.error("Error fetching customer profile:", error);
+      res.status(500).json({ message: "Failed to fetch customer profile" });
+    }
+  });
+
   app.get('/api/customers', adminOnly, async (req, res) => {
     try {
       const customers = await storage.getCustomers();
@@ -562,6 +533,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid vehicle data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create vehicle" });
+    }
+  });
+
+  // Get all vehicles (role-aware)
+  app.get('/api/vehicles', isAuthenticated, clientOwnershipMiddleware, async (req: any, res) => {
+    try {
+      let vehicles;
+      
+      if (req.user.role === 'admin') {
+        // Admins see all vehicles
+        vehicles = await storage.getAllVehicles();
+      } else if (req.clientCustomer) {
+        // Clients see only their vehicles
+        vehicles = await storage.getVehiclesByCustomer(req.clientCustomer.id);
+      } else {
+        return res.status(403).json({ message: "No customer profile found for this user" });
+      }
+
+      res.json(vehicles);
+    } catch (error) {
+      console.error("Error fetching vehicles:", error);
+      res.status(500).json({ message: "Failed to fetch vehicles" });
+    }
+  });
+
+  // Get a specific vehicle
+  app.get('/api/vehicles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.id);
+      
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Check ownership for non-admin users
+      if (req.user.role !== 'admin') {
+        const customer = await storage.getCustomerByUserId(req.user.id);
+        if (!customer || vehicle.customerId !== customer.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      res.json(vehicle);
+    } catch (error) {
+      console.error("Error fetching vehicle:", error);
+      res.status(500).json({ message: "Failed to fetch vehicle" });
+    }
+  });
+
+  // Update a vehicle
+  app.patch('/api/vehicles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.id);
+      
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Check ownership for non-admin users
+      if (req.user.role !== 'admin') {
+        const customer = await storage.getCustomerByUserId(req.user.id);
+        if (!customer || vehicle.customerId !== customer.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      const vehicleData = insertVehicleSchema.partial().parse(req.body);
+      const updatedVehicle = await storage.updateVehicle(req.params.id, vehicleData);
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "UPDATE_VEHICLE",
+        entityType: "vehicle",
+        entityId: req.params.id,
+        oldValues: vehicle,
+        newValues: updatedVehicle,
+        status: "success",
+      });
+
+      res.json(updatedVehicle);
+    } catch (error) {
+      console.error("Error updating vehicle:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid vehicle data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update vehicle" });
+    }
+  });
+
+  // Delete a vehicle
+  app.delete('/api/vehicles/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const vehicle = await storage.getVehicle(req.params.id);
+      
+      if (!vehicle) {
+        return res.status(404).json({ message: "Vehicle not found" });
+      }
+
+      // Check ownership for non-admin users
+      if (req.user.role !== 'admin') {
+        const customer = await storage.getCustomerByUserId(req.user.id);
+        if (!customer || vehicle.customerId !== customer.id) {
+          return res.status(403).json({ message: "Access denied" });
+        }
+      }
+
+      await storage.deleteVehicle(req.params.id);
+
+      // Audit log
+      await storage.createAuditLog({
+        userId: req.user.id,
+        operation: "DELETE_VEHICLE",
+        entityType: "vehicle",
+        entityId: req.params.id,
+        oldValues: vehicle,
+        status: "success",
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting vehicle:", error);
+      res.status(500).json({ message: "Failed to delete vehicle" });
     }
   });
 

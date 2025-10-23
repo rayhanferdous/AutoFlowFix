@@ -78,15 +78,18 @@ export interface IStorage {
   getCustomers(): Promise<Customer[]>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByEmail(email: string): Promise<Customer | undefined>;
+  getCustomerByUserId(userId: string): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer>;
   deleteCustomer(id: string): Promise<void>;
 
   // Vehicle operations
+  getAllVehicles(): Promise<Vehicle[]>;
   getVehiclesByCustomer(customerId: string): Promise<Vehicle[]>;
   getVehicle(id: string): Promise<Vehicle | undefined>;
   createVehicle(vehicle: InsertVehicle): Promise<Vehicle>;
   updateVehicle(id: string, vehicle: Partial<InsertVehicle>): Promise<Vehicle>;
+  deleteVehicle(id: string): Promise<void>;
 
   // Appointment operations
   getAppointments(startDate?: Date, endDate?: Date): Promise<Appointment[]>;
@@ -236,6 +239,7 @@ export class DatabaseStorage implements IStorage {
       entityType,
       entityId,
       status: 'success',
+      details,
     });
   }
 
@@ -322,7 +326,16 @@ export class DatabaseStorage implements IStorage {
     await db.delete(customers).where(eq(customers.id, id));
   }
 
+  async getCustomerByUserId(userId: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.userId, userId));
+    return customer;
+  }
+
   // Vehicle operations
+  async getAllVehicles(): Promise<Vehicle[]> {
+    return await db.select().from(vehicles).orderBy(desc(vehicles.createdAt));
+  }
+
   async getVehiclesByCustomer(customerId: string): Promise<Vehicle[]> {
     return await db.select().from(vehicles).where(eq(vehicles.customerId, customerId));
   }
@@ -344,6 +357,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(vehicles.id, id))
       .returning();
     return updatedVehicle;
+  }
+
+  async deleteVehicle(id: string): Promise<void> {
+    await db.delete(vehicles).where(eq(vehicles.id, id));
   }
 
   // Appointment operations
@@ -383,10 +400,12 @@ export class DatabaseStorage implements IStorage {
 
   // Get appointments filtered by technician assignment (for technician users)
   async getAppointmentsByTechnician(technicianId: string, startDate?: Date, endDate?: Date): Promise<Appointment[]> {
+    const query = db.selectDistinct().from(appointments)
+      .innerJoin(repairOrders, eq(repairOrders.appointmentId, appointments.id))
+      .where(eq(repairOrders.technicianId, technicianId));
+
     if (startDate && endDate) {
-      const results = await db.selectDistinct()
-        .from(appointments)
-        .innerJoin(repairOrders, eq(repairOrders.appointmentId, appointments.id))
+      return await query
         .where(
           and(
             eq(repairOrders.technicianId, technicianId),
@@ -394,18 +413,13 @@ export class DatabaseStorage implements IStorage {
             lte(appointments.scheduledDate, endDate)
           )
         )
-        .orderBy(desc(appointments.scheduledDate));
-
-      return (results as any).map((r: any) => r.appointments as Appointment);
-    } else {
-      const results = await db.selectDistinct()
-        .from(appointments)
-        .innerJoin(repairOrders, eq(repairOrders.appointmentId, appointments.id))
-        .where(eq(repairOrders.technicianId, technicianId))
-        .orderBy(desc(appointments.scheduledDate));
-
-      return (results as any).map((r: any) => r.appointments as Appointment);
+        .orderBy(desc(appointments.scheduledDate))
+        .then(results => results.map(result => result.appointments));
     }
+    
+    return await query
+      .orderBy(desc(appointments.scheduledDate))
+      .then(results => results.map(result => result.appointments));
   }
 
   async getAppointment(id: string): Promise<Appointment | undefined> {
@@ -633,23 +647,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
-    // drizzle decimal columns expect strings for insertion
-    const insertItem = { ...item, unitCost: item.unitCost != null ? String(item.unitCost) : undefined, sellingPrice: item.sellingPrice != null ? String(item.sellingPrice) : undefined } as any;
-    const [newItem] = await (db.insert(inventory).values(insertItem) as any).returning();
+    const [newItem] = await db.insert(inventory).values(item).returning();
     return newItem;
   }
 
   async updateInventoryItem(id: string, item: Partial<InsertInventoryItem>): Promise<InventoryItem> {
-    const setItem = {
-      ...item,
-      unitCost: item.unitCost != null ? String(item.unitCost) : undefined,
-      sellingPrice: item.sellingPrice != null ? String(item.sellingPrice) : undefined,
-      updatedAt: new Date(),
-    } as any;
-
     const [updated] = await db
       .update(inventory)
-      .set(setItem)
+      .set({ ...item, updatedAt: new Date() })
       .where(eq(inventory.id, id))
       .returning();
     return updated;
@@ -798,8 +803,7 @@ export class DatabaseStorage implements IStorage {
     // Group customers by month
     const customersByMonth: { [key: string]: number } = {};
     allCustomers.forEach((customer) => {
-      const createdAt = customer.createdAt ? new Date(customer.createdAt) : null;
-      const monthKey = createdAt ? createdAt.toISOString().slice(0, 7) : 'unknown';
+      const monthKey = new Date(customer.createdAt).toISOString().slice(0, 7);
       customersByMonth[monthKey] = (customersByMonth[monthKey] || 0) + 1;
     });
 
